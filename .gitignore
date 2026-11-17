@@ -1,0 +1,12 @@
+site/
+test-output/
+bambu/
+bambu.zip
+__pycache__/
+*.gcode
+*.gcode.3mf
+# never commit student work
+*.stl
+!test/test-plate.stl
+*.3mf
+.claude/

@@ -1,0 +1,130 @@
+name: Build and publish
+
+# Every Monday: if Bambu Studio has a new version, rebuild the printer settings
+# with it, slice the test plate on every printer, and publish only if all pass.
+# Also publishes whenever something is pushed to main.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 2 * * 1'
+  workflow_dispatch:
+    inputs:
+      rebuild:
+        description: Rebuild printer settings even if Bambu Studio has not changed
+        type: boolean
+        default: false
+      test_only:
+        description: Rebuild and test, but do not publish or save anything
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: build-and-publish
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+    outputs:
+      publish: ${{ steps.ver.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Is there a new Bambu Studio?
+        id: ver
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $rel = gh api repos/bambulab/BambuStudio/releases/latest | ConvertFrom-Json
+          $latest = $rel.tag_name.TrimStart('v')
+          $m = Select-String -Path src/templates.js -Pattern '"bambuStudio":"([^"]*)"'
+          $built = if ($m) { $m.Matches[0].Groups[1].Value } else { 'none' }
+          $asset = $rel.assets | Where-Object { $_.name -like 'Bambu_Studio_win*.zip' } | Select-Object -First 1
+          $force = ('${{ inputs.rebuild }}' -eq 'true') -or ('${{ inputs.test_only }}' -eq 'true')
+          $rebuild = ($latest -ne $built) -or $force
+          $publish = '${{ inputs.test_only }}' -ne 'true'
+          Write-Host "Latest Bambu Studio: $latest | settings built with: $built | rebuild: $rebuild | publish: $publish"
+          if ($rebuild -and -not $asset) { throw "No Windows zip found in the Bambu Studio $latest release" }
+          "latest=$latest" >> $env:GITHUB_OUTPUT
+          "url=$($asset.browser_download_url)" >> $env:GITHUB_OUTPUT
+          "rebuild=$($rebuild.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          "publish=$($publish.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+
+      - name: Download Bambu Studio ${{ steps.ver.outputs.latest }}
+        if: steps.ver.outputs.rebuild == 'true'
+        shell: pwsh
+        run: |
+          curl.exe -L --fail --retry 3 -o bambu.zip "${{ steps.ver.outputs.url }}"
+          7z x bambu.zip -obambu -y | Out-Null
+          Get-ChildItem bambu -Recurse -Filter bambu-studio.exe | Select-Object -First 1 FullName
+
+      - name: Rebuild printer settings
+        if: steps.ver.outputs.rebuild == 'true'
+        run: python tools/build.py --bambu bambu
+
+      - name: Check every printer (name plate, 2 colours)
+        if: steps.ver.outputs.rebuild == 'true'
+        run: node tools/test_slice.js --bambu bambu --printers all --mode nameplate --expect-letters 5 --out test-output test/test-plate.stl
+
+      - name: Check every printer (1 colour)
+        if: steps.ver.outputs.rebuild == 'true'
+        run: node tools/test_slice.js --bambu bambu --printers all --mode single --out test-output test/test-plate.stl
+
+      - name: Bundle website
+        run: python tools/build.py --html-only --heartbeat
+
+      - name: Save updated settings to the repo
+        if: steps.ver.outputs.publish == 'true'
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/templates.js build-info.json
+          $changed = git diff --cached --name-only
+          if ($changed) {
+            $msg = if ($changed -match 'templates.js') { "Update printer settings for Bambu Studio ${{ steps.ver.outputs.latest }}" } else { "Monthly check: printer settings still current" }
+            git commit -m $msg
+            git push
+          }
+          exit 0
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site
+          include-hidden-files: true
+
+  publish:
+    needs: build
+    if: needs.build.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
