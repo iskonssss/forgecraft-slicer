@@ -9,9 +9,14 @@ Base and letter colours land on the right AMS slots every time.
 
 1. Open the link above in Chrome or Edge. Click **Install app** (top right) once, or bookmark it.
    After that it opens from the desktop / Start menu like a normal program.
-2. Pick the printer, drop the student's STL files on the page.
-3. Check the preview (letters visible, right height, not floating, not touching), then **Download .3mf**.
-   It opens in Bambu Studio. Do the AMS mapping there as usual, then send to the printer.
+2. Pick the printer, drop all the students' STL files on the page at once.
+   Every STL gets its own plate, named after the file (plates follow file-name order).
+3. Flip through the plates with the **← →** keys (or click a file in the list) and check each one:
+   letters visible, right height, not floating, not touching.
+4. Click **Download**. Name plates and single-colour models come as separate projects
+   (different print settings), so with both you get **Download all**, which saves both files.
+   Bambu Studio allows at most 36 plates per project, so bigger groups are split into several files automatically.
+5. Open the file in Bambu Studio, do the AMS mapping as usual, **Slice all**, then print each plate.
 
 | Printer | Base | Letters |
 |---|---|---|
@@ -31,7 +36,7 @@ Every Monday a GitHub job checks whether Bambu Studio has a new version. If it d
 
 1. downloads the new Bambu Studio,
 2. rebuilds the printer settings for all 7 printers with it,
-3. slices a test name plate (`test/test-plate.stl`) on every printer, in 2-colour and 1-colour mode,
+3. slices a test name plate (`test/test-plate.stl`) on every printer, as a 3-plate 2-colour project and in 1-colour mode,
 4. publishes the new site **only if every printer passes**.
 
 If any printer fails, the site stays on the last good version and GitHub emails the repo owner about the failed run.
@@ -47,7 +52,8 @@ The job also commits a small heartbeat (`build-info.json`) every month so GitHub
   then commit and push `presets/` and `src/templates.js`. Pushing publishes the site.
 - **Force a rebuild now:** GitHub > Actions > *Build and publish* > *Run workflow*, tick *Rebuild printer settings*.
   Tick *test only* to try it without publishing.
-- **Test locally:** `node tools/test_slice.js --printers all --mode nameplate --expect-letters 5 test/test-plate.stl`
+- **Test locally:** `node tools/test_slice.js --printers all --mode nameplate --expect-letters 5 --copies 3 test/test-plate.stl`
+  (`--copies N` puts N copies in one project, each on its own plate.)
 - **Website only:** `python tools/build.py --html-only` writes the site to `site/`.
 
 Code: `src/core.js` (STL parsing, letter detection, 3MF writer), `src/viewer.js` (3D preview),

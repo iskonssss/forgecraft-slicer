@@ -114,10 +114,12 @@
     files = files.filter(function (f) { return /\.stl$/i.test(f.name); });
     if (bad.length) showStatus('Only STL files can be added (skipped ' + bad.map(function (f) { return f.name; }).join(', ') + ').', true);
     if (!files.length) return;
+    // plates follow file-name order (natural sort: "name 2" before "name 10")
+    files.sort(function (a, b) { return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }); });
     $('busy').classList.add('on');
-    var i = 0;
+    var i = 0, first = null;
     (function next() {
-      if (i >= files.length) { $('busy').classList.remove('on'); refresh(true); return; }
+      if (i >= files.length) { $('busy').classList.remove('on'); if (first) showModel(first, true); else refresh(true); return; }
       var f = files[i++];
       $('busy').textContent = 'Reading ' + f.name + '…';
       f.arrayBuffer().then(function (buf) {
@@ -133,7 +135,7 @@
           mode: an.kind, size: [b[3] - b[0], b[4] - b[1], b[5] - b[2]]
         };
         state.models.push(m);
-        state.group = m.mode; state.plate = 0; state.selected = m.id;
+        if (!first) first = m;
         next();
       }).catch(function (e) {
         showStatus('Could not read ' + f.name + ': ' + e.message, true);
@@ -167,36 +169,62 @@
         '<button type="button" data-mode="single" aria-pressed="' + (m.mode === 'single') + '">1 colour</button></span>' +
         '<span class="mmeta">' + meta + '</span></div>' + modelNotes(m);
       d.querySelector('.xbtn').onclick = function () {
+        // stay on the same plate number, so QC can carry on with the next model
         state.models = state.models.filter(function (x) { return x !== m; });
-        state.plate = 0; refresh(true);
+        state.frameNext = true; refresh(false);
+        var cur = scene.plates[state.plate];
+        if (cur && cur.items[0]) { state.selected = scene.models[cur.items[0].index].id; renderModels(); }
       };
       d.querySelectorAll('.seg button').forEach(function (b) {
-        b.onclick = function () {
-          m.mode = b.getAttribute('data-mode'); state.group = m.mode; state.plate = 0; state.selected = m.id; refresh(true);
-        };
+        b.onclick = function () { m.mode = b.getAttribute('data-mode'); showModel(m); };
       });
       d.onclick = function (e) {
         if (e.target.closest('button')) return;
-        state.selected = m.id;
-        if (state.group !== m.mode) { state.group = m.mode; state.plate = 0; refresh(true); } else renderModels();
+        showModel(m);
       };
       box.appendChild(d);
     });
     $('mcount').textContent = state.models.length ? state.models.length : '';
     $('dropBtn').hidden = state.models.length > 0;
     $('addMore').hidden = state.models.length === 0;
+    $('clearAll').hidden = state.models.length < 2;
+    var sel = box.querySelector('.model.sel');
+    if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: 'nearest' });
   }
 
   function groupModels(g) { return state.models.filter(function (m) { return m.mode === g; }); }
 
   // ---------------------------------------------------------------- layout + preview
+  // Every STL gets its own plate (plate 1 = first model in the list).
   var scene = { plates: [], placed: {}, unplaced: [] };
   function computeLayout() {
     var p = P(), ms = groupModels(state.group);
     var placed = ms.map(function (m) { return C.placeable(m.mesh, p); });
-    var lay = C.layout(placed.map(function (pl) { return { w: pl.w, d: pl.d }; }), p, { tower: state.group === 'nameplate' });
+    var lay = C.layout(placed.map(function (pl) { return { w: pl.w, d: pl.d }; }), p, { tower: state.group === 'nameplate', onePerPlate: true });
     scene = { models: ms, placed: placed, plates: lay.plates, unplaced: lay.unplaced.map(function (i) { return ms[i]; }) };
     if (state.plate >= scene.plates.length) state.plate = Math.max(0, scene.plates.length - 1);
+  }
+  function plateOfModel(m) {
+    for (var p = 0; p < scene.plates.length; p++) {
+      for (var k = 0; k < scene.plates[p].items.length; k++) if (scene.models[scene.plates[p].items[k].index] === m) return p;
+    }
+    return -1;
+  }
+  // select a model and show the plate it is on
+  function showModel(m, resetCamera) {
+    state.selected = m.id; state.group = m.mode;
+    computeLayout();
+    var pi = plateOfModel(m);
+    if (pi >= 0) state.plate = pi;
+    state.frameNext = true;
+    refresh(resetCamera);
+  }
+  function goPlate(i) {
+    if (i < 0 || i >= scene.plates.length || i === state.plate) return;
+    state.plate = i; state.frameNext = true;
+    var it = scene.plates[i].items[0];
+    if (it) state.selected = scene.models[it.index].id;
+    renderTabs(); renderModels(); renderScene();
   }
   function rgb(hex) { var c = hex.replace('#', ''); return [parseInt(c.substr(0, 2), 16) / 255, parseInt(c.substr(2, 2), 16) / 255, parseInt(c.substr(4, 2), 16) / 255]; }
   function faceColours(m) {
@@ -300,9 +328,11 @@
       tabs.hidden = true;
       if (ng) state.group = 'nameplate'; else if (ns) state.group = 'single';
     }
-    var np = scene.plates.length;
+    var np = scene.plates.length, cur = scene.plates[state.plate];
+    var who = cur ? cur.items.map(function (it) { return (scene.models[it.index] || {}).name; }).filter(Boolean).join(', ') : '';
     $('pnav').hidden = np < 2;
-    $('plabel').textContent = 'Plate ' + (state.plate + 1) + ' of ' + np;
+    $('plabel').textContent = 'Plate ' + (state.plate + 1) + ' of ' + np + (who ? ' · ' + who : '');
+    $('plabel').title = who;
     $('pprev').disabled = state.plate <= 0;
     $('pnext').disabled = state.plate >= np - 1;
   }
@@ -320,23 +350,41 @@
   }
 
   // ---------------------------------------------------------------- export
+  // One project per group (name plates / 1 colour), one plate per STL.
+  // Bambu Studio allows 36 plates per project, so bigger groups are split into several files.
+  var MAX_PLATES = C.MAX_PLATES || 36;
+  var DL_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>';
+  function fileCount(ms) { return Math.ceil(ms.length / MAX_PLATES); }
+  function countLabel(group, n) {
+    return group === 'nameplate' ? n + ' name plate' + (n === 1 ? '' : 's') : n + ' single-colour model' + (n === 1 ? '' : 's');
+  }
   function renderExport() {
     var p = P(), box = $('export');
     box.innerHTML = '';
-    var groups = [['nameplate', groupModels('nameplate')], ['single', groupModels('single')]];
+    var groups = [['nameplate', groupModels('nameplate')], ['single', groupModels('single')]].filter(function (g) { return g[1].length; });
+    if (groups.length > 1) {
+      var files = groups.reduce(function (s, g) { return s + fileCount(g[1]); }, 0);
+      var all = document.createElement('button');
+      all.type = 'button'; all.className = 'dl';
+      all.innerHTML = DL_ICON + '<span><b>Download all · ' + files + ' files</b>' +
+        '<small>' + groups.map(function (g) { return countLabel(g[0], g[1].length); }).join(' + ') + ' · one plate each</small></span>';
+      all.onclick = function () { exportGroups(groups.map(function (g) { return g[0]; }), all); };
+      box.appendChild(all);
+    }
     groups.forEach(function (g) {
-      if (!g[1].length) return;
-      var isNP = g[0] === 'nameplate';
+      var isNP = g[0] === 'nameplate', n = g[1].length, nf = fileCount(g[1]);
       var b = document.createElement('button');
       b.type = 'button';
-      b.className = 'dl' + (groups[0][1].length && !isNP ? ' secondary' : '');
-      var count = g[1].length > 1 ? ' (' + g[1].length + ')' : '';
+      b.className = 'dl' + (groups.length > 1 ? ' secondary' : '');
       var slots = isNP ? 'base slot ' + p.slots.base + ', letters slot ' + p.slots.letter
         : 'slot ' + (state.singleSlot === 'letter' ? p.slots.letter : p.slots.base);
-      b.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>' +
-        '<span><b>Download ' + (isNP ? 'name plate' : '1-colour') + ' project' + count + '</b>' +
-        '<small>' + p.label + ' · ' + (isNP ? p.namePlateProcess : '0.20mm Standard') + ' · ' + slots + '</small></span>';
-      b.onclick = function () { doExport(g[0], b); };
+      var title = groups.length > 1 ? 'Only ' + countLabel(g[0], n)
+        : 'Download ' + (n > 1 ? countLabel(g[0], n) : (isNP ? 'name plate' : '1-colour') + ' project');
+      if (nf > 1) title += ' · ' + nf + ' files';
+      b.innerHTML = DL_ICON + '<span><b>' + title + '</b>' +
+        '<small>' + p.label + ' · ' + (isNP ? p.namePlateProcess : '0.20mm Standard') + ' · ' + slots +
+        (n > 1 ? ' · one plate each' : '') + '</small></span>';
+      b.onclick = function () { exportGroups([g[0]], b); };
       box.appendChild(b);
       if (!isNP) {
         var sel = document.createElement('div');
@@ -365,33 +413,62 @@
     return new Response(stream).arrayBuffer().then(function (b) { return new Uint8Array(b); });
   }
   function safe(s) { return s.replace(/[<>:"\/\\|?*\u0000-\u001F]/g, '').trim(); }
-  function doExport(group, btn) {
-    var p = P(), ms = groupModels(group);
-    if (!ms.length) return;
-    if (group === 'nameplate' && ms.every(function (m) { return !letterCount(m); })) {
-      showStatus('No letters are coloured yet. Click the letter tops in the preview first.', true);
+  // the files one group downloads as: [{fname, job}], max 36 plates each
+  function groupJobs(group) {
+    var p = P(), ms = groupModels(group), isNP = group === 'nameplate', parts = [];
+    for (var i = 0; i < ms.length; i += MAX_PLATES) parts.push(ms.slice(i, i + MAX_PLATES));
+    return parts.map(function (part, k) {
+      var title = part.length === 1 && parts.length === 1 ? part[0].name : (isNP ? part.length + ' name plates' : part.length + ' models');
+      if (parts.length > 1) title += ' (' + (k * MAX_PLATES + 1) + '-' + (k * MAX_PLATES + part.length) + ' of ' + ms.length + ')';
+      return {
+        fname: safe(title + ' - ' + p.label + (isNP ? '' : ' - 1 colour')) + '.3mf',
+        job: {
+          printer: p, meta: T, mode: group, title: title,
+          colors: { base: state.colors.base, letter: state.colors.letter },
+          singleSlot: state.singleSlot, bedType: 'Textured PEI Plate',
+          objects: part.map(function (m) {
+            return { name: m.file, plateName: m.name, mesh: m.mesh, paint: isNP ? C.paintFlags(m.mesh, m.an) : null };
+          })
+        }
+      };
+    });
+  }
+  function saveFile(bytes, fname) {
+    var blob = new Blob([bytes], { type: 'application/vnd.ms-package.3dmanufacturing-3dmodel+xml' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 60000);
+  }
+  function exportGroups(list, btn) {
+    // every name plate needs coloured letters (or should be switched to 1 colour)
+    var blank = list.indexOf('nameplate') >= 0 ? groupModels('nameplate').filter(function (m) { return !letterCount(m); }) : [];
+    if (blank.length) {
+      showModel(blank[0]);
+      showStatus('No letters coloured on ' + blank.map(function (m) { return m.name; }).join(', ') +
+        '. Click its letter tops, or switch it to "1 colour".', true);
       return;
     }
+    var jobs = [];
+    list.forEach(function (g) { jobs = jobs.concat(groupJobs(g)); });
+    if (!jobs.length) return;
     btn.disabled = true;
-    var names = ms.map(function (m) { return m.name; });
-    var title = names.length === 1 ? names[0] : names.length + (group === 'nameplate' ? ' name plates' : ' models');
-    var fname = safe(title + ' - ' + p.label + (group === 'single' ? ' - 1 colour' : '')) + '.3mf';
-    var job = {
-      printer: p, meta: T, mode: group, title: title,
-      colors: { base: state.colors.base, letter: state.colors.letter },
-      singleSlot: state.singleSlot, bedType: 'Textured PEI Plate',
-      objects: ms.map(function (m) {
-        return { name: m.file, mesh: m.mesh, paint: group === 'nameplate' ? C.paintFlags(m.mesh, m.an) : null };
-      })
-    };
-    C.build3MF(job, typeof CompressionStream !== 'undefined' ? deflateRaw : null).then(function (r) {
-      var blob = new Blob([r.zip], { type: 'application/vnd.ms-package.3dmanufacturing-3dmodel+xml' });
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob); a.download = fname;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function () { URL.revokeObjectURL(a.href); }, 30000);
-      var plates = r.plates.length;
-      showStatus('Saved "' + fname + '"' + (plates > 1 ? ' with ' + plates + ' plates' : '') + '. Open it to load it in Bambu Studio.');
+    var deflate = typeof CompressionStream !== 'undefined' ? deflateRaw : null;
+    var saved = [], plates = 0, chain = Promise.resolve();
+    jobs.forEach(function (j, k) {
+      chain = chain.then(function () { return C.build3MF(j.job, deflate); }).then(function (r) {
+        saveFile(r.zip, j.fname);
+        saved.push(j.fname); plates += r.plates.length;
+        // a short pause between files, so the browser accepts each download
+        if (k < jobs.length - 1) return new Promise(function (res) { setTimeout(res, 700); });
+      });
+    });
+    chain.then(function () {
+      if (saved.length === 1) {
+        showStatus('Saved "' + saved[0] + '"' + (plates > 1 ? ' with ' + plates + ' plates' : '') + '. Open it to load it in Bambu Studio.');
+      } else {
+        showStatus('Saved ' + saved.length + ' files, ' + plates + ' plates in total. If the browser asks to download multiple files, click Allow.');
+      }
     }).catch(function (e) {
       showStatus('Could not build the project: ' + e.message, true);
     }).then(function () { btn.disabled = false; });
@@ -427,8 +504,13 @@
   $('fileInput').onchange = function (e) { addFiles(e.target.files); e.target.value = ''; };
   $('vReset').onclick = function () { viewer && viewer.resetView(); };
   $('vTop').onclick = function () { viewer && viewer.topView(); };
-  $('pprev').onclick = function () { if (state.plate > 0) { state.plate--; state.frameNext = true; renderTabs(); renderScene(); } };
-  $('pnext').onclick = function () { if (state.plate < scene.plates.length - 1) { state.plate++; state.frameNext = true; renderTabs(); renderScene(); } };
+  $('pprev').onclick = function () { goPlate(state.plate - 1); };
+  $('pnext').onclick = function () { goPlate(state.plate + 1); };
+  $('clearAll').onclick = function () {
+    if (!window.confirm('Remove all ' + state.models.length + ' models from the list?')) return;
+    state.models = []; state.plate = 0; state.selected = null; state.hover = null;
+    refresh(true);
+  };
   // ---------------------------------------------------------------- freshness, install, offline
   var BUILD = window.FORGECRAFT_BUILD || { checked: T.generated };
   $('tplinfo').textContent = 'Printer settings from Bambu Studio ' + (T.bambuStudio || '?') + ', built ' + T.generated +
@@ -467,6 +549,12 @@
   });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && state.openPalette) { state.openPalette = null; renderColours(); }
+    // left/right arrows flip through the plates for QC
+    if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !e.altKey && !e.ctrlKey && !e.metaKey &&
+      !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
+      e.preventDefault();
+      goPlate(state.plate + (e.key === 'ArrowRight' ? 1 : -1));
+    }
   });
 
   window.ForgecraftApp = { state: state, addFiles: addFiles, refresh: refresh, viewer: viewer, scene: function () { return scene; } };

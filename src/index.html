@@ -120,6 +120,9 @@
   .tools button:hover, .pnav button:hover:not(:disabled), .tabs button:hover { background: rgba(255, 255, 255, .09); }
   .pnav span { color: var(--stage-ink); font-size: 12.5px; padding: 5px 6px; }
   .pnav button:disabled { opacity: .35; cursor: default; }
+  #plabel { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .clear { border: 0; background: none; color: var(--accent); font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: 0; padding: 0; }
+  .clear:hover { text-decoration: underline; }
   .legend { position: absolute; left: 14px; bottom: 14px; display: flex; gap: 14px; color: var(--stage-ink); font-size: 12.5px; background: rgba(20, 22, 25, .72); border: 1px solid rgba(255, 255, 255, .08); border-radius: 9px; padding: 7px 11px; backdrop-filter: blur(6px); }
   .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; border: 1px solid rgba(255, 255, 255, .35); }
   .shint { position: absolute; right: 14px; bottom: 14px; color: rgba(216, 219, 223, .75); font-size: 12px; text-align: right; max-width: 52%; }
@@ -166,18 +169,18 @@
     </section>
 
     <section class="card">
-      <h2>Models <span id="mcount"></span></h2>
+      <h2><span>Models <span id="mcount"></span></span><button class="clear" id="clearAll" type="button" hidden>Clear all</button></h2>
       <div class="mlist" id="models"></div>
       <button class="drop" id="dropBtn" type="button">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
-        <b>Drop STL files here</b><br>or click to choose
+        <b>Drop STL files here</b><br>or click to choose · each STL gets its own plate
       </button>
       <button class="add-more" id="addMore" type="button" hidden>+ Add more STL files</button>
     </section>
 
     <section class="export" id="export"></section>
     <div id="status" class="status" hidden></div>
-    <p class="hint">Open the downloaded file, it loads in Bambu Studio with everything set. Then press <b>Slice plate</b> and <b>Print</b>.<br>Tip: in Chrome, click <b>⋮</b> on the download and choose <b>Always open files of this type</b>, so the next ones open automatically.</p>
+    <p class="hint">Open the downloaded file, it loads in Bambu Studio with everything set, one plate per STL (named after the file). Press <b>Slice all</b>, then print each plate.<br>Use the <b>← →</b> keys to flip through the plates for QC.<br>Tip: in Chrome, click <b>⋮</b> on the download and choose <b>Always open files of this type</b>, so the next ones open automatically.</p>
 
     <div class="foot">
       <span>Build plate: Textured PEI (all printers)</span>

@@ -79,9 +79,9 @@ jobs:
         if: steps.ver.outputs.rebuild == 'true'
         run: python tools/build.py --bambu bambu
 
-      - name: Check every printer (name plate, 2 colours)
+      - name: Check every printer (name plate, 2 colours, 3 plates)
         if: steps.ver.outputs.rebuild == 'true'
-        run: node tools/test_slice.js --bambu bambu --printers all --mode nameplate --expect-letters 5 --out test-output test/test-plate.stl
+        run: node tools/test_slice.js --bambu bambu --printers all --mode nameplate --expect-letters 5 --copies 3 --out test-output test/test-plate.stl
 
       - name: Check every printer (1 colour)
         if: steps.ver.outputs.rebuild == 'true'

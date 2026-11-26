@@ -387,6 +387,8 @@ var ForgecraftCore = (function () {
   /*
    * items: [{w, d}] footprints (mm). Returns {plates: [{items:[{index,x,y}], tower:[x,y]}], unplaced:[]}
    * x,y are the centres of each footprint in plate coordinates.
+   * opts.onePerPlate: every item gets its own plate, in the order given (plate 1 = item 0).
+   * Otherwise items are packed onto as few plates as possible.
    */
   function layout(items, printer, opts) {
     opts = opts || {};
@@ -403,15 +405,14 @@ var ForgecraftCore = (function () {
       var mx = (bed[0] + bed[2] - tw) / 2, my = (bed[1] + bed[3] - tw) / 2;
       return [[x1, y1], [x0, y1], [mx, y1], [x1, my], [x1, y0], [x0, my], [mx, y0], [x0, y0]];
     }
-
-    if (items.length === 1 && items[0].w <= bw && items[0].d <= bd) {
-      var it = items[0];
+    // one item centred on its own plate, prime tower in the first free corner
+    function soloPlate(it, index) {
       var cx = (bed[0] + bed[2]) / 2, cy = (bed[1] + bed[3]) / 2;
       var r = [cx - it.w / 2, cy - it.d / 2, cx + it.w / 2, cy + it.d / 2];
       obstaclesBase.forEach(function (o) {
         if (rectsOverlap(r, o)) { var dx = o[2] - r[0] + 2; r[0] += dx; r[2] += dx; }
       });
-      var p = { items: [{ index: 0, x: (r[0] + r[2]) / 2, y: (r[1] + r[3]) / 2 }], tower: null };
+      var p = { items: [{ index: index, x: (r[0] + r[2]) / 2, y: (r[1] + r[3]) / 2 }], tower: null };
       if (needTower) {
         var spots = towerSpots(), grown = [r[0] - gap, r[1] - gap, r[2] + gap, r[3] + gap];
         for (var s = 0; s < spots.length; s++) {
@@ -420,7 +421,14 @@ var ForgecraftCore = (function () {
         }
         if (!p.tower) p.tower = spots[0];
       }
-      return { plates: [p], unplaced: [] };
+      return p;
+    }
+
+    if (opts.onePerPlate || items.length === 1) {
+      items.forEach(function (it, i) {
+        if (it.w > bw || it.d > bd) unplaced.push(i); else plates.push(soloPlate(it, i));
+      });
+      return { plates: plates, unplaced: unplaced };
     }
 
     function newPlate() {
@@ -620,7 +628,7 @@ var ForgecraftCore = (function () {
     var anyPaint = mode === 'nameplate' && job.objects.some(function (o) {
       if (!o.paint) return false; for (var i = 0; i < o.paint.length; i++) if (o.paint[i]) return true; return false;
     });
-    var lay = layout(placed.map(function (p) { return { w: p.w, d: p.d }; }), P, { tower: anyPaint });
+    var lay = layout(placed.map(function (p) { return { w: p.w, d: p.d }; }), P, { tower: anyPaint, onePerPlate: !job.pack });
     var plates = lay.plates;
 
     // ----- project settings
@@ -716,9 +724,12 @@ var ForgecraftCore = (function () {
 
     var thumbs = job.thumbnails || [];
     var plateXml = plates.map(function (pl, pi) {
+      // plate name shown in Bambu Studio: the student's name (or names, if packed)
+      var pname = pl.items.map(function (it) { return job.objects[it.index].plateName || ''; }).filter(Boolean).join(', ');
+      if (pname.length > 60) pname = pname.slice(0, 57) + '...';
       var s = '  <plate>\n' +
         '    <metadata key="plater_id" value="' + (pi + 1) + '"/>\n' +
-        '    <metadata key="plater_name" value=""/>\n' +
+        '    <metadata key="plater_name" value="' + esc(pname) + '"/>\n' +
         '    <metadata key="locked" value="false"/>\n' +
         '    <metadata key="filament_map_mode" value="' + cfg.filament_map_mode + '"/>\n' +
         '    <metadata key="filament_maps" value="' + fill(n, ext).join(' ') + '"/>\n' +
@@ -770,6 +781,7 @@ var ForgecraftCore = (function () {
   }
 
   return {
+    MAX_PLATES: 36,   // Bambu Studio crashes on projects with more than 36 plates
     parseSTL: parseSTL,
     buildMesh: buildMesh,
     bbox: bbox,

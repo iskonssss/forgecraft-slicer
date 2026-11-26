@@ -2,8 +2,9 @@
  * Slicing check: STL -> Forgecraft 3MF -> Bambu Studio command line -> pass/fail.
  *
  *   node tools/test_slice.js [--bambu <folder|exe>] [--printers all|A1,H2D] [--mode nameplate|single|auto]
- *                            [--expect-letters N] [--out <folder>] file.stl [more.stl ...]
+ *                            [--expect-letters N] [--copies N] [--out <folder>] file.stl [more.stl ...]
  *
+ * --copies N puts N copies of each STL in the project. Every copy must land on its own plate.
  * Exits with code 1 if any printer fails, so the GitHub build will not publish.
  */
 const fs = require('fs');
@@ -15,7 +16,7 @@ const core = require('../src/core.js');
 const T = require('../src/templates.js');
 
 // ---------------------------------------------------------------- args
-const opts = { printers: 'all', mode: 'auto', out: path.join(os.tmpdir(), 'forgecraft-test'), bambu: process.env.BAMBU_STUDIO || '', expect: null };
+const opts = { printers: 'all', mode: 'auto', out: path.join(os.tmpdir(), 'forgecraft-test'), bambu: process.env.BAMBU_STUDIO || '', expect: null, copies: 1 };
 const files = [];
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i++) {
@@ -25,6 +26,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--out') opts.out = argv[++i];
   else if (a === '--bambu') opts.bambu = argv[++i];
   else if (a === '--expect-letters') opts.expect = +argv[++i];
+  else if (a === '--copies') opts.copies = Math.max(1, +argv[++i] || 1);
   else files.push(a);
 }
 if (!files.length) { console.log('usage: node tools/test_slice.js [--printers all] [--mode auto] [--expect-letters N] file.stl'); process.exit(2); }
@@ -64,6 +66,8 @@ const objects = files.map(f => {
   }
   return { name: path.basename(f), mesh: prep.mesh, paint: core.paintFlags(prep.mesh, an), kind: an.kind };
 });
+const copies = [];
+objects.forEach(o => { for (let k = 1; k <= opts.copies; k++) copies.push(Object.assign({}, o, { plateName: o.name.replace(/\.stl$/i, '') + (opts.copies > 1 ? ' ' + k : '') })); });
 
 // ---------------------------------------------------------------- slice
 (async () => {
@@ -75,7 +79,7 @@ const objects = files.map(f => {
     const job = {
       printer: P, meta: T, mode, title: 'test',
       colors: { base: '#FFFFFF', letter: '#0A2989' },
-      objects: objects.map(o => ({ name: o.name, mesh: o.mesh, paint: o.paint }))
+      objects: copies.map(o => ({ name: o.name, mesh: o.mesh, paint: o.paint, plateName: o.plateName }))
     };
     const r = core.build3MFFiles(job);
     const zip = await core.makeZip(r.files, d => zlib.deflateRawSync(d));
@@ -109,6 +113,7 @@ const objects = files.map(f => {
       } else if (letter) problems.push(`plate ${p.id}: single-colour print used the letter filament`);
     });
     if (!plates.length && !problems.length) problems.push('no plates sliced');
+    else if (plates.length !== copies.length) problems.push(`${plates.length} plates sliced, expected ${copies.length} (one per STL)`);
     if (problems.length) failures++;
     console.log(`${problems.length ? 'FAIL' : 'ok  '} ${key.padEnd(4)} ${mode.padEnd(9)}${summary}${problems.length ? '  <-- ' + problems.join('; ') : ''}`);
   }
