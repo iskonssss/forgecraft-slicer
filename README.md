@@ -23,7 +23,7 @@ Base and letter colours land on the right AMS slots every time.
 |---|---|---|
 | P1S, X1C, P2S | AMS slot 1 | AMS slot 2 |
 | H2D (right nozzle), X2D (main nozzle) | AMS slot 1 | AMS slot 2 |
-| A1, A1 mini (AMS lite) | AMS lite slot 2 | AMS lite slot 3 |
+| A1, A1 mini | AMS lite slot 1 | AMS lite slot 2 |
 
 Name plates use 0.28 mm Name Plate settings (0.2 mm first layer, top 0.56 mm of the letters painted, Arachne walls).
 Spinners and other single-colour parts use 0.20 mm Standard. Generic PLA, Textured PEI plate.

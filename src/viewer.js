@@ -1,6 +1,7 @@
 /*
  * Forgecraft Slicer - small WebGL plate viewer (no libraries, works offline).
- * Orbit: left-drag. Pan: right-drag or shift+drag. Zoom: wheel. Click: pick a face.
+ * Mouse like Tinkercad: orbit = right-drag, pan = middle (wheel) drag or Shift+right-drag, zoom = wheel.
+ * Left click picks a face (left-drag does nothing). Touch: one-finger drag orbits.
  */
 var ForgecraftViewer = (function () {
   'use strict';
@@ -276,8 +277,16 @@ var ForgecraftViewer = (function () {
   Viewer.prototype._bind = function () {
     var self = this, c = this.canvas, drag = null;
     c.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    // stop the browser's middle-click autoscroll so wheel-drag can pan
+    c.addEventListener('mousedown', function (e) { if (e.button === 1) e.preventDefault(); });
+    c.addEventListener('auxclick', function (e) { if (e.button === 1) e.preventDefault(); });
     c.addEventListener('pointerdown', function (e) {
-      drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, pan: e.button === 2 || e.shiftKey, moved: false };
+      var mode = null;
+      if (e.pointerType === 'touch' || e.pointerType === 'pen') mode = 'orbit';
+      else if (e.button === 1 || (e.button === 2 && e.shiftKey)) mode = 'pan';
+      else if (e.button === 2) mode = 'orbit';
+      if (e.button === 1) e.preventDefault();
+      drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, mode: mode, button: e.button, moved: false };
       c.setPointerCapture(e.pointerId);
     });
     c.addEventListener('pointermove', function (e) {
@@ -294,7 +303,8 @@ var ForgecraftViewer = (function () {
       var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       drag.x = e.clientX; drag.y = e.clientY;
       if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 4) drag.moved = true;
-      if (drag.pan) {
+      if (!drag.mode) return;
+      if (drag.mode === 'pan') {
         var k = self.dist / c.clientHeight * 0.6;
         var right = [Math.cos(self.yaw), Math.sin(self.yaw), 0], fwd = [-Math.sin(self.yaw), Math.cos(self.yaw), 0];
         self.target = add(self.target, add(scale(right, -dx * k), scale(fwd, dy * k)));
@@ -305,7 +315,7 @@ var ForgecraftViewer = (function () {
       self.render();
     });
     c.addEventListener('pointerup', function (e) {
-      if (drag && !drag.moved && e.button === 0 && self.onPick) {
+      if (drag && !drag.moved && drag.button === 0 && self.onPick) {
         var rect = c.getBoundingClientRect();
         self.onPick(self.pick(e.clientX - rect.left, e.clientY - rect.top));
       }

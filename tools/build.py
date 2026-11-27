@@ -46,8 +46,8 @@ PRINTERS = [
     ("P2S", "P2S", "Bambu Lab P2S 0.4 nozzle", "0.20mm Standard @BBL P2S", "Generic PLA @BBL P2S", "0.28mm Name Plate P2S", 1, 2),
     ("H2D", "H2D", "Bambu Lab H2D 0.4 nozzle", "0.20mm Standard @BBL H2D", "Generic PLA @BBL H2D", "0.28mm Name Plate H2D", 1, 2),
     ("X2D", "X2D", "Bambu Lab X2D 0.4 nozzle", "0.20mm Standard @BBL X2D", "Generic PLA @BBL X2D 0.4 nozzle", "0.28mm Name Plate X2D", 1, 2),
-    ("A1", "A1", "Bambu Lab A1 0.4 nozzle", "0.20mm Standard @BBL A1", "Generic PLA @BBL A1", "0.28mm Name Plate A1", 2, 3),
-    ("A1M", "A1 mini", "Bambu Lab A1 mini 0.4 nozzle", "0.20mm Standard @BBL A1M", "Generic PLA @BBL A1M", "0.28mm Name Plate A1 Mini", 2, 3),
+    ("A1", "A1", "Bambu Lab A1 0.4 nozzle", "0.20mm Standard @BBL A1", "Generic PLA @BBL A1", "0.28mm Name Plate A1", 1, 2),
+    ("A1M", "A1 mini", "Bambu Lab A1 mini 0.4 nozzle", "0.20mm Standard @BBL A1M", "Generic PLA @BBL A1M", "0.28mm Name Plate A1 Mini", 1, 2),
 ]
 
 GUI_EXTRA_KEYS = {

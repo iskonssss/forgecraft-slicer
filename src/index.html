@@ -120,7 +120,7 @@
   .tools button:hover, .pnav button:hover:not(:disabled), .tabs button:hover { background: rgba(255, 255, 255, .09); }
   .pnav span { color: var(--stage-ink); font-size: 12.5px; padding: 5px 6px; }
   .pnav button:disabled { opacity: .35; cursor: default; }
-  #plabel { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #plabel { width: 250px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* fixed: arrows stay put */
   .clear { border: 0; background: none; color: var(--accent); font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: 0; padding: 0; }
   .clear:hover { text-decoration: underline; }
   .legend { position: absolute; left: 14px; bottom: 14px; display: flex; gap: 14px; color: var(--stage-ink); font-size: 12.5px; background: rgba(20, 22, 25, .72); border: 1px solid rgba(255, 255, 255, .08); border-radius: 9px; padding: 7px 11px; backdrop-filter: blur(6px); }
@@ -140,6 +140,7 @@
     .panel { border-right: 0; padding: 14px 16px; }
     .stage { min-height: 60vh; }
     .shint { display: none; }
+    #plabel { width: 190px; }
   }
 </style>
 </head>
@@ -198,7 +199,7 @@
     </div>
     <div class="busy" id="busy">Reading model…</div>
     <div class="legend" id="legend"></div>
-    <div class="shint">Click a letter (or any top surface) to switch its colour<br>Drag to rotate · right-drag to pan · scroll to zoom</div>
+    <div class="shint">Click a letter (or any top surface) to switch its colour<br>Right-drag to orbit · wheel-drag or Shift+right-drag to pan · scroll to zoom</div>
   </main>
 </div>
 <div class="dropzone" id="dropzone"><div>Drop STL files to add them</div></div>

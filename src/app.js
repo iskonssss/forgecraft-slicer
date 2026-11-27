@@ -38,7 +38,8 @@
   }
 
   // ---------------------------------------------------------------- printer buttons
-  function amsName(p) { return p.slots.base === 2 ? 'AMS lite' : p.nozzles > 1 ? (p.extruder === 2 ? 'right nozzle' : 'main nozzle') : 'AMS'; }
+  function isAmsLite(p) { return /^A1/.test(p.key); }  // A1 and A1 mini
+  function amsName(p) { return isAmsLite(p) ? 'AMS lite' : p.nozzles > 1 ? (p.extruder === 2 ? 'right nozzle' : 'main nozzle') : 'AMS'; }
   function renderPrinters() {
     var box = $('printers');
     box.innerHTML = '';
@@ -52,7 +53,7 @@
     });
     var p = P();
     var where = p.nozzles > 1 ? (p.extruder === 2 ? ' on the <strong>right nozzle</strong>' : ' on the <strong>main nozzle</strong>') : '';
-    $('slotnote').innerHTML = (p.slots.base === 2 ? 'AMS lite' : 'AMS') + ': base in <strong>slot ' + p.slots.base +
+    $('slotnote').innerHTML = (isAmsLite(p) ? 'AMS lite' : 'AMS') + ': base in <strong>slot ' + p.slots.base +
       '</strong>, letters in <strong>slot ' + p.slots.letter + '</strong>' + where + '.';
   }
 
