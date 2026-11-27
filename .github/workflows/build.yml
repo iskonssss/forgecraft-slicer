@@ -117,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url }}
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -127,5 +127,16 @@ jobs:
         with:
           path: site
           include-hidden-files: true
-      - id: deployment
+      # GitHub sometimes takes a few seconds to list a fresh upload, and the deploy then fails with
+      # 'No artifacts named "github-pages"'. Wait a moment, and retry once if it still happens.
+      - name: Let GitHub register the upload
+        run: sleep 20
+      - id: deploy1
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+      - name: Wait before retrying the deploy
+        if: steps.deploy1.outcome == 'failure'
+        run: sleep 60
+      - id: deploy2
+        if: steps.deploy1.outcome == 'failure'
         uses: actions/deploy-pages@v5
