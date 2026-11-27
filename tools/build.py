@@ -337,6 +337,46 @@ def build_templates(bambu_arg, profiles_arg):
 
 
 # --------------------------------------------------------------------------- website
+APPS = os.path.join(ROOT, "apps")
+
+# Shared bar at the top of every page, so trainers can jump between the tools.
+NAV_CSS = """<style id="fc-nav-style">
+:root { --fc-nav-h: 36px; }
+.fc-nav { flex: none; position: relative; z-index: 1000; box-sizing: border-box; height: var(--fc-nav-h); margin: 0;
+  display: flex; align-items: center; gap: 2px; padding: 0 10px; background: #13261B; color: #EFE9DC;
+  font: 500 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+.fc-nav::-webkit-scrollbar { display: none; }
+.fc-nav .fc-brand { font-weight: 700; margin-right: 10px; letter-spacing: .02em; }
+.fc-nav .fc-brand span { color: #D4A843; }
+.fc-nav a { color: inherit; text-decoration: none; padding: 6px 10px; border-radius: 6px; opacity: .78; }
+.fc-nav a:hover { opacity: 1; background: rgba(255, 255, 255, .08); }
+.fc-nav a[aria-current="page"] { opacity: 1; background: rgba(212, 168, 67, .2); color: #F3D68A; font-weight: 650; }
+</style>"""
+
+
+def load_apps():
+    path = os.path.join(APPS, "apps.json")
+    return json.load(open(path, encoding="utf-8")) if os.path.exists(path) else []
+
+
+def nav_html(apps, current, base):
+    links = [("", "Name Plate Slicer")] + [(a["folder"] + "/", a["title"]) for a in apps]
+    out = []
+    for href, title in links:
+        cur = ' aria-current="page"' if href == current else ""
+        out.append(f'<a href="{base}{href}"{cur}>{title}</a>')
+    return (NAV_CSS + '\n<nav class="fc-nav" aria-label="Forgecraft tools"><span class="fc-brand">Forge<span>craft</span></span>'
+            + "".join(out) + "</nav>\n")
+
+
+def inject(html, head_extra, body_extra):
+    """Add tags just before </head> and just after <body ...>, leaving the page itself untouched."""
+    html = re.sub(r"</head>", lambda m: head_extra + "\n</head>", html, count=1, flags=re.I) \
+        if re.search(r"</head>", html, re.I) else head_extra + html
+    m = re.search(r"<body[^>]*>", html, re.I)
+    return html[:m.end()] + "\n" + body_extra + html[m.end():] if m else body_extra + html
+
+
 def bundle_site():
     html = open(os.path.join(SRC, "index.html"), encoding="utf-8").read()
 
@@ -349,18 +389,47 @@ def bundle_site():
     if os.environ.get("SITE_URL"):
         stamp["site"] = os.environ["SITE_URL"]
     html = html.replace("<!--BUILD-->", "<script>var FORGECRAFT_BUILD = " + json.dumps(stamp) + ";</script>")
-    if os.path.isdir(SITE):
-        shutil.rmtree(SITE)
-    os.makedirs(os.path.join(SITE, "icons"))
+    apps = load_apps()
+    html = inject(html, "", nav_html(apps, "", "./"))
+    if os.path.isdir(SITE):  # empty it (deleting the folder itself fails while a local preview server uses it)
+        for e in os.listdir(SITE):
+            p = os.path.join(SITE, e)
+            shutil.rmtree(p) if os.path.isdir(p) else os.remove(p)
+    os.makedirs(os.path.join(SITE, "icons"), exist_ok=True)
     open(os.path.join(SITE, "index.html"), "w", encoding="utf-8").write(html)
-    version = hashlib.sha1(html.encode("utf-8")).hexdigest()[:12]
-    sw = open(os.path.join(SRC, "sw.js"), encoding="utf-8").read().replace("__VERSION__", version)
+
+    # the other tools: copied as they come from Claude, plus the shared bar, app icon and offline support
+    shell = []
+    head = ('<link rel="manifest" href="../manifest.webmanifest">\n<meta name="theme-color" content="#13261B">\n'
+            '<link rel="icon" type="image/png" href="../icons/icon-192.png">\n<link rel="apple-touch-icon" href="../icons/icon-192.png">')
+    sw_reg = ("<script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) "
+              "navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(function () {});</script>\n")
+    for a in apps:
+        src_dir, out_dir = os.path.join(APPS, a["folder"]), os.path.join(SITE, a["folder"])
+        shutil.copytree(src_dir, out_dir)
+        page = os.path.join(out_dir, "index.html")
+        text = open(page, encoding="utf-8").read()
+        # small wording fixes for the website (skipped quietly if a newer version no longer has the text)
+        for old, new in a.get("replace", []):
+            text = text.replace(old, new)
+        open(page, "w", encoding="utf-8").write(inject(text, head, nav_html(apps, a["folder"] + "/", "../") + sw_reg))
+        for f in sorted(os.listdir(out_dir)):
+            shell.append("./" + a["folder"] + "/" + ("" if f == "index.html" else f))
+
+    # offline cache version changes whenever any page or file changes
+    digest = hashlib.sha1()
+    for dirpath, _, files in sorted(os.walk(SITE)):
+        for f in sorted(files):
+            digest.update(open(os.path.join(dirpath, f), "rb").read())
+    version = digest.hexdigest()[:12]
+    sw = open(os.path.join(SRC, "sw.js"), encoding="utf-8").read().replace("__VERSION__", version) \
+        .replace("/*__APP_FILES__*/", "".join(", " + json.dumps(s) for s in shell))
     open(os.path.join(SITE, "sw.js"), "w", encoding="utf-8").write(sw)
     shutil.copyfile(os.path.join(SRC, "manifest.webmanifest"), os.path.join(SITE, "manifest.webmanifest"))
     for f in glob.glob(os.path.join(SRC, "icons", "*.png")):
         shutil.copyfile(f, os.path.join(SITE, "icons", os.path.basename(f)))
     open(os.path.join(SITE, ".nojekyll"), "w").close()
-    log(f"Wrote site/ (index.html {len(html) // 1024} KB, version {version}, checked {stamp['checked']})")
+    log(f"Wrote site/ (index.html {len(html) // 1024} KB, {len(apps)} other tools, version {version}, checked {stamp['checked']})")
 
 
 def update_build_info(force=False):

@@ -1,0 +1,12 @@
+[
+  {
+    "folder": "lattice-ball",
+    "title": "Lattice Ball",
+    "about": "TPU bouncy ball with the student's name",
+    "replace": [
+      ["If nothing downloaded, open this page in claude.ai to save the file.", "Saved to your Downloads folder."]
+    ]
+  },
+  { "folder": "walker-prep", "title": "Walker Prep", "about": "Ramp walker: leg slots, centre weight, balance check" },
+  { "folder": "line-thickener", "title": "Line Thickener", "about": "Thicken thin lines in picsvg SVGs for Tinkercad" }
+]

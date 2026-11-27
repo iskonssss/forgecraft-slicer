@@ -4,6 +4,7 @@ Drop a TinkerCAD name plate STL, pick the printer, download a ready-to-print Bam
 Base and letter colours land on the right AMS slots every time.
 
 **Open it here: https://iskonssss.github.io/forgecraft-slicer/**
+(also has the Lattice Ball maker, Walker Prep Station and Line Thickener, see [Other tools](#other-tools-on-the-site))
 
 ## For trainers
 
@@ -29,6 +30,37 @@ Spinners and other single-colour parts use 0.20 mm Standard. Generic PLA, Textur
 
 Nothing to install or update. The page always loads the latest version when online, and keeps working offline once opened.
 If the page ever shows a yellow "printer settings have not been checked" banner, tell the workshop owner.
+
+## Other tools on the site
+
+The bar at the top of every page switches between the tools. One install covers all of them.
+
+| Tool | Address | What it does |
+|---|---|---|
+| Name Plate Slicer | `/` | Name plate STLs to ready-to-print Bambu projects (this page) |
+| Lattice Ball | `/lattice-ball/` | TPU bouncy ball with the student's name, STL + 3MF |
+| Walker Prep | `/walker-prep/` | Ramp walker: leg slots, centre weight, support blockers, balance check |
+| Line Thickener | `/line-thickener/` | Thickens too-thin lines in picsvg SVGs before Tinkercad |
+
+Each tool is one HTML file in `apps/<folder>/`, exactly as it comes from Claude. The build adds the top bar,
+the app icon and offline support, so the files themselves never need editing for the site.
+
+### Updating a tool
+
+1. Improve the tool in its Claude chat as usual.
+2. Get the new version onto the site, either way:
+   - **Ask Claude Code** (in this folder): "update the Walker Prep on the site". It fetches the latest version
+     from claude.ai, checks it works, and pushes.
+   - **Or by hand on GitHub:** download the HTML from the Claude chat, rename it `index.html`, then on
+     github.com open `apps/<folder>/` > *Add file* > *Upload files* > *Commit changes*.
+3. The site updates by itself about 2 minutes later.
+
+### Adding a new tool
+
+Make a folder in `apps/` with the tool as `index.html` (plus any files it loads), and add a line to
+`apps/apps.json` (folder, title, one-line description). The title is what shows in the top bar.
+`apps.json` can also hold small wording fixes (`replace`) applied when the site is built, for text that only
+makes sense inside Claude (for example "open this page in claude.ai").
 
 ## How updates work (nothing to do)
 

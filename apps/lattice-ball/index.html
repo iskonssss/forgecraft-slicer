@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lattice Ball Maker — Forgecraft</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --forest:#1C382A; --forest-2:#2a4d3b; --cream:#F6F1E6; --paper:#FFFCF6; --gold:#D4A846; --terra:#B9573A;
+    --ink:#1C382A; --muted:#5d6f64; --line:#e3dccd;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--cream);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:15px;line-height:1.45}
+  header{display:flex;align-items:baseline;gap:10px;padding:16px 18px 6px;flex-wrap:wrap}
+  header h1{font-family:'Fraunces',Georgia,serif;font-weight:700;font-size:26px;margin:0;letter-spacing:-.01em}
+  header .tag{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:600}
+  .wrap{display:grid;grid-template-columns:1fr;gap:14px;padding:8px 14px 40px;max-width:1180px;margin:0 auto}
+  @media (min-width:900px){ .wrap{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start} .viewer{position:sticky;top:12px} }
+  .viewer{background:radial-gradient(120% 90% at 50% 30%, #fffaf0 0%, #efe6d4 70%, #e6dcc6 100%);border:1px solid var(--line);border-radius:18px;overflow:hidden;position:relative}
+  #view{display:block;width:100%;aspect-ratio:1/1;max-height:72vh;touch-action:none}
+  .busy{position:absolute;left:12px;top:12px;background:var(--forest);color:var(--cream);font-size:12px;font-weight:600;padding:5px 10px;border-radius:99px;opacity:0;transition:opacity .2s}
+  .busy.on{opacity:1}
+  .swatches{position:absolute;right:10px;top:10px;display:flex;gap:6px}
+  .sw{width:22px;height:22px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15);cursor:pointer;padding:0}
+  .sw[aria-pressed=true]{box-shadow:0 0 0 2px var(--forest)}
+  .stats{display:flex;flex-wrap:wrap;gap:6px 16px;padding:10px 14px;border-top:1px solid var(--line);background:rgba(255,252,246,.7);font-size:13px;color:var(--muted)}
+  .stats b{font-family:'Space Grotesk',monospace;color:var(--ink);font-weight:600}
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:16px}
+  .group{padding:12px 0;border-bottom:1px dashed var(--line)}
+  .group:first-child{padding-top:0}
+  .group:last-of-type{border-bottom:0}
+  .gtitle{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);font-weight:700;margin-bottom:8px}
+  input[type=text]{width:100%;font:600 22px 'Fraunces',Georgia,serif;letter-spacing:.06em;text-transform:uppercase;padding:10px 12px;border:1.5px solid var(--forest);border-radius:12px;background:#fff;color:var(--forest);outline:none}
+  input[type=text]:focus{box-shadow:0 0 0 3px rgba(212,168,70,.35)}
+  .hint{font-size:12px;color:var(--muted);margin-top:5px}
+  .seg{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}
+  .seg button{font:600 14px 'Plus Jakarta Sans',sans-serif;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:12px;padding:9px 8px;cursor:pointer;text-align:left;line-height:1.2}
+  .seg button small{display:block;font-weight:500;font-size:11px;color:var(--muted);margin-top:2px}
+  .seg button[aria-pressed=true]{border-color:var(--forest);background:var(--forest);color:var(--cream)}
+  .seg button[aria-pressed=true] small{color:#c9d6cc}
+  .row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 10px;margin:9px 0}
+  .row label{font-weight:600;font-size:14px}
+  .row output{font-family:'Space Grotesk',monospace;font-weight:600;font-size:14px;min-width:58px;text-align:right}
+  .row input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--forest)}
+  .toggle{display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:600;font-size:14px;cursor:pointer}
+  .toggle input{width:20px;height:20px;accent-color:var(--forest)}
+  .btn{font:700 15px 'Plus Jakarta Sans',sans-serif;border:0;border-radius:14px;padding:13px 16px;cursor:pointer}
+  .btn.primary{background:var(--gold);color:var(--forest);width:100%}
+  .btn.primary:disabled{opacity:.55;cursor:default}
+  .btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink);padding:8px 12px;font-size:13px}
+  .warn{background:#fbeee8;color:var(--terra);border-radius:10px;padding:8px 10px;font-size:13px;margin-top:10px;display:none}
+  .warn.on{display:block}
+  .msg{font-size:13px;color:var(--muted);margin-top:8px;min-height:1em}
+  details{margin-top:14px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+  details summary{font-weight:700;cursor:pointer}
+  details li{margin:6px 0;font-size:14px}
+  .ctx{display:none}.ctx.on{display:block}
+  .foot{font-size:12px;color:var(--muted);margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Lattice Ball Maker</h1>
+  <span class="tag">Forgecraft · TPU bouncy ball</span>
+</header>
+
+<div class="wrap">
+  <section class="viewer" aria-label="3D preview">
+    <canvas id="view"></canvas>
+    <div class="busy" id="busy">Building…</div>
+    <div class="swatches" id="swatches" aria-label="Preview colour">
+      <button class="sw" style="background:#2f6f55" data-c="#2f6f55" aria-pressed="true" title="Green"></button>
+      <button class="sw" style="background:#e46a3a" data-c="#e46a3a" aria-pressed="false" title="Orange"></button>
+      <button class="sw" style="background:#3c7bd6" data-c="#3c7bd6" aria-pressed="false" title="Blue"></button>
+      <button class="sw" style="background:#e9b5c9" data-c="#e9b5c9" aria-pressed="false" title="Pink"></button>
+      <button class="sw" style="background:#f2efe6" data-c="#f2efe6" aria-pressed="false" title="White"></button>
+    </div>
+    <div class="stats" id="stats">Loading preview…</div>
+  </section>
+
+  <section>
+    <div class="panel">
+      <div class="group">
+        <div class="gtitle">Name</div>
+        <input type="text" id="name" value="ISKONS" maxlength="14" autocomplete="off" spellcheck="false">
+        <div class="hint">Letters A–Z, numbers and “!”. Other characters are skipped. The name sits in a framed window around the middle of the ball.</div>
+        <div class="row"><label for="letterH">Letter height</label><output id="o_letterH"></output><input type="range" id="letterH" min="5" max="14" step="0.5" value="7.5"></div>
+        <div class="row"><label for="letterDia">Letter stroke</label><output id="o_letterDia"></output><input type="range" id="letterDia" min="0.9" max="2" step="0.05" value="1.2"></div>
+      </div>
+
+      <div class="group">
+        <div class="gtitle">Lattice style</div>
+        <div class="seg" id="type">
+          <button data-v="geodesic" aria-pressed="true">Geodesic<small>Triangle holes, like the airless ping pong ball</small></button>
+          <button data-v="voronoi" aria-pressed="false">Voronoi<small>Hex-like holes, like the airless tennis ball</small></button>
+        </div>
+        <div class="row"><label for="diameter">Ball diameter</label><output id="o_diameter"></output><input type="range" id="diameter" min="30" max="60" step="1" value="38"></div>
+
+        <div class="ctx" id="ctx_geo">
+          <div class="row"><label for="freq">Hole density</label><output id="o_freq"></output><input type="range" id="freq" min="2" max="6" step="1" value="4"></div>
+        </div>
+        <div class="ctx" id="ctx_voro">
+          <div class="row"><label for="cells">Number of cells</label><output id="o_cells"></output><input type="range" id="cells" min="60" max="400" step="10" value="200"></div>
+          <div class="row"><label for="jitter">Randomness</label><output id="o_jitter"></output><input type="range" id="jitter" min="0" max="1" step="0.05" value="0.3"></div>
+          <button class="btn ghost" id="shuffle" type="button">Shuffle pattern</button>
+        </div>
+        <div id="ctx_strut">
+          <div class="row"><label for="shell">Shell thickness (rib depth)</label><output id="o_shell"></output><input type="range" id="shell" min="1.2" max="4" step="0.1" value="2.2"></div>
+          <div class="row"><label for="rib">Rib width</label><output id="o_rib"></output><input type="range" id="rib" min="0.8" max="2" step="0.05" value="1.05"></div>
+          <label class="toggle"><input type="checkbox" id="inner"> Add inner ball + spokes (heavier, adds print time)</label>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="gtitle">Printing</div>
+        <div class="gtitle" style="margin-top:2px">Layer height (saved in the 3MF)</div>
+        <div class="seg" id="layer">
+          <button data-v="0.2" aria-pressed="false">0.20 mm<small>Finer, slower</small></button>
+          <button data-v="0.24" aria-pressed="true">0.24 mm<small>Fits a 70-min slot</small></button>
+        </div>
+        <div class="gtitle" style="margin-top:14px">Support blockers (in the 3MF)</div>
+        <label class="toggle"><input type="checkbox" id="blockInside" checked> Inside the ball (no supports in the hollow)</label>
+        <label class="toggle"><input type="checkbox" id="blockName" checked> Around the name</label>
+        <label class="toggle" style="font-weight:500;color:var(--muted)"><input type="checkbox" id="showBlockers"> Show blockers in the preview</label>
+        <div class="hint">These are saved as support-blocker parts that Bambu Studio reads from the 3MF. The STL is the ball only.</div>
+        <div class="gtitle" style="margin-top:14px">Detail</div>
+        <div class="seg" id="quality">
+          <button data-v="draft" aria-pressed="false">Draft<small>Fast preview</small></button>
+          <button data-v="normal" aria-pressed="true">Normal<small>Good for printing</small></button>
+          <button data-v="fine" aria-pressed="false">Fine<small>Smoother, bigger file</small></button>
+        </div>
+      </div>
+
+      <div class="warn" id="warn"></div>
+      <div style="margin-top:14px"><button class="btn primary" id="dl" type="button" disabled>Download STL + 3MF (.zip)</button></div>
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <details>
+      <summary>Printing tips (TPU on Bambu A1 mini)</summary>
+      <ul>
+        <li>Unzip, then open the <b>.3mf</b> in Bambu Studio. It carries these settings on the object: chosen layer height, 3 walls (Arachne), 15% infill, 5 mm brim, and Tree Slim auto supports. Pick your TPU filament profile and feed it from the external spool.</li>
+        <li><b>Why it's built this way:</b> both airless reference balls are a thick shell (about 11% of the radius on the ping pong ball) cut with small holes, about 53% solid all the way through. The ribs are deep and narrow, not round struts, so the ball springs back instead of squashing.</li>
+        <li><b>Material matters most.</b> The tennis ball's designer reports about 50% bounce height with TPU 98A or PLA Flex, but only about 20% with TPU 95A.</li>
+        <li>The <b>print time</b> shown is an estimate for Generic TPU (3.2 mm³/s) on an A1 mini, calibrated on the ping pong ball's Bambu Studio time. Supports and brim add a few minutes. Slice once in Bambu Studio to confirm before the class.</li>
+        <li><i>Inside the ball</i> blocker keeps supports out of the hollow. <i>Around the name</i> keeps support marks off the letters. The ping pong reference printed with no supports at all, just a brim, so it's worth trying that to save time.</li>
+        <li>If Bambu Studio warns about the mesh, use its <i>Fix model</i> option.</li>
+      </ul>
+      <div class="foot">Weight is model volume × 1.21 g/cm³ (typical TPU). Print time and weight are estimates, not slicer output.</div>
+    </details>
+  </section>
+</div>
+
+<script id="core-src">
+/* Forgecraft Lattice Ball — geometry core (no dependencies). */
+(function (root) {
+'use strict';
+
+/* ---------- vector helpers ---------- */
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const len = a => Math.hypot(a[0], a[1], a[2]);
+const norm = a => { const l = len(a); return [a[0] / l, a[1] / l, a[2] / l]; };
+const scale = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ---------- incremental convex hull (points around origin) ---------- */
+function convexHull(pts) {
+  const n = pts.length;
+  const d2 = (a, b) => { const d = sub(a, b); return dot(d, d); };
+  let i0 = 0, i1 = -1, i2 = -1, i3 = -1, best = -1;
+  for (let i = 1; i < n; i++) { const d = d2(pts[i], pts[i0]); if (d > best) { best = d; i1 = i; } }
+  best = -1;
+  for (let i = 0; i < n; i++) {
+    if (i === i0 || i === i1) continue;
+    const c = cross(sub(pts[i1], pts[i0]), sub(pts[i], pts[i0])); const d = dot(c, c);
+    if (d > best) { best = d; i2 = i; }
+  }
+  const nr = cross(sub(pts[i1], pts[i0]), sub(pts[i2], pts[i0]));
+  best = -1;
+  for (let i = 0; i < n; i++) {
+    if (i === i0 || i === i1 || i === i2) continue;
+    const d = Math.abs(dot(nr, sub(pts[i], pts[i0])));
+    if (d > best) { best = d; i3 = i; }
+  }
+  const init = [i0, i1, i2, i3];
+  const ctr = [0, 0, 0];
+  init.forEach(i => { ctr[0] += pts[i][0] / 4; ctr[1] += pts[i][1] / 4; ctr[2] += pts[i][2] / 4; });
+  let faces = [];
+  function addFace(a, b, c) {
+    let nn = cross(sub(pts[b], pts[a]), sub(pts[c], pts[a]));
+    nn = norm(nn);
+    let d = dot(nn, pts[a]);
+    if (dot(nn, ctr) - d > 0) { const t = b; b = c; c = t; nn = scale(nn, -1); d = -d; }
+    faces.push({ v: [a, b, c], n: nn, d, alive: true });
+  }
+  addFace(i0, i1, i2); addFace(i0, i1, i3); addFace(i0, i2, i3); addFace(i1, i2, i3);
+  const used = new Set(init);
+  for (let i = 0; i < n; i++) {
+    if (used.has(i)) continue;
+    const p = pts[i];
+    const vis = [];
+    for (const f of faces) if (f.alive && dot(f.n, p) - f.d > 1e-10) vis.push(f);
+    if (!vis.length) continue;
+    const es = new Set();
+    for (const f of vis) { const [a, b, c] = f.v; es.add(a + ',' + b); es.add(b + ',' + c); es.add(c + ',' + a); }
+    const hor = [];
+    for (const f of vis) {
+      const [a, b, c] = f.v;
+      for (const [x, y] of [[a, b], [b, c], [c, a]]) if (!es.has(y + ',' + x)) hor.push([x, y]);
+    }
+    for (const f of vis) f.alive = false;
+    for (const [x, y] of hor) addFace(x, y, i);
+    if (faces.length > 4 * n + 2000) faces = faces.filter(f => f.alive);
+  }
+  return faces.filter(f => f.alive);
+}
+
+/* ---------- sphere lattice graphs (unit sphere) ---------- */
+function geodesicGraph(freq) {
+  const p = (1 + Math.sqrt(5)) / 2;
+  const ico = [[-1, p, 0], [1, p, 0], [-1, -p, 0], [1, -p, 0], [0, -1, p], [0, 1, p], [0, -1, -p], [0, 1, -p], [p, 0, -1], [p, 0, 1], [-p, 0, -1], [-p, 0, 1]].map(norm);
+  const faces = convexHull(ico);
+  const verts = [], map = new Map(), edges = new Set();
+  const key = v => v.map(x => Math.round(x * 1e5)).join(',');
+  const vid = v => { v = norm(v); const k = key(v); if (map.has(k)) return map.get(k); verts.push(v); map.set(k, verts.length - 1); return verts.length - 1; };
+  const addE = (a, b) => { if (a !== b) edges.add(a < b ? a + ',' + b : b + ',' + a); };
+  for (const f of faces) {
+    const [A, B, C] = f.v.map(i => ico[i]);
+    const id = [];
+    for (let i = 0; i <= freq; i++) {
+      id[i] = [];
+      for (let j = 0; j <= freq - i; j++) {
+        const v = [0, 1, 2].map(c => A[c] + (B[c] - A[c]) * i / freq + (C[c] - A[c]) * j / freq);
+        id[i][j] = vid(v);
+      }
+    }
+    for (let i = 0; i <= freq; i++) for (let j = 0; j <= freq - i; j++) {
+      if (i + j < freq) { addE(id[i][j], id[i + 1][j]); addE(id[i][j], id[i][j + 1]); addE(id[i + 1][j], id[i][j + 1]); }
+    }
+  }
+  return { verts, edges: [...edges].map(s => s.split(',').map(Number)) };
+}
+
+function voronoiGraph(count, seed, jitter) {
+  const rnd = mulberry32(seed);
+  const pts = [];
+  const ga = Math.PI * (3 - Math.sqrt(5));
+  const spacing = Math.sqrt(4 * Math.PI / count);
+  for (let i = 0; i < count; i++) {
+    const z = 1 - 2 * (i + 0.5) / count, r = Math.sqrt(1 - z * z), t = i * ga;
+    let v = [r * Math.cos(t), r * Math.sin(t), z];
+    const g = [rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1];
+    v = norm([v[0] + g[0] * jitter * spacing * 0.5, v[1] + g[1] * jitter * spacing * 0.5, v[2] + g[2] * jitter * spacing * 0.5]);
+    pts.push(v);
+  }
+  const faces = convexHull(pts);
+  const verts = faces.map(f => f.n);
+  const emap = new Map();
+  faces.forEach((f, fi) => { const [a, b, c] = f.v; emap.set(a + ',' + b, fi); emap.set(b + ',' + c, fi); emap.set(c + ',' + a, fi); });
+  const edges = [];
+  faces.forEach((f, fi) => {
+    const [a, b, c] = f.v;
+    for (const [x, y] of [[a, b], [b, c], [c, a]]) {
+      const o = emap.get(y + ',' + x);
+      if (o !== undefined && fi < o) edges.push([fi, o]);
+    }
+  });
+  // merge Voronoi vertices that are almost on top of each other (very short struts)
+  return { verts, edges };
+}
+
+/* ---------- single-stroke font (x: 0..w, y: 0..6) ---------- */
+const O_ = [[1, 0], [0, 1], [0, 5], [1, 6], [3, 6], [4, 5], [4, 1], [3, 0], [1, 0]];
+const GLYPHS = {
+  A: [4, [[0, 0], [2, 6], [4, 0]], [[0.7, 2.1], [3.3, 2.1]]],
+  B: [4, [[0, 0], [0, 6], [3, 6], [4, 5], [4, 4], [3, 3], [0, 3]], [[3, 3], [4, 2], [4, 1], [3, 0], [0, 0]]],
+  C: [4, [[4, 5], [3, 6], [1, 6], [0, 5], [0, 1], [1, 0], [3, 0], [4, 1]]],
+  D: [4, [[0, 0], [0, 6], [2.5, 6], [4, 4.5], [4, 1.5], [2.5, 0], [0, 0]]],
+  E: [3.6, [[3.6, 6], [0, 6], [0, 0], [3.6, 0]], [[0, 3], [2.8, 3]]],
+  F: [3.6, [[3.6, 6], [0, 6], [0, 0]], [[0, 3], [2.8, 3]]],
+  G: [4, [[4, 5], [3, 6], [1, 6], [0, 5], [0, 1], [1, 0], [3, 0], [4, 1], [4, 3], [2.2, 3]]],
+  H: [4, [[0, 0], [0, 6]], [[4, 0], [4, 6]], [[0, 3], [4, 3]]],
+  I: [2, [[0, 6], [2, 6]], [[1, 6], [1, 0]], [[0, 0], [2, 0]]],
+  J: [4, [[4, 6], [4, 1], [3, 0], [1, 0], [0, 1]]],
+  K: [4, [[0, 0], [0, 6]], [[4, 6], [0, 2]], [[1.4, 3.4], [4, 0]]],
+  L: [3.6, [[0, 6], [0, 0], [3.6, 0]]],
+  M: [5, [[0, 0], [0, 6], [2.5, 2.4], [5, 6], [5, 0]]],
+  N: [4, [[0, 0], [0, 6], [4, 0], [4, 6]]],
+  O: [4, O_],
+  P: [4, [[0, 0], [0, 6], [3, 6], [4, 5], [4, 4], [3, 3], [0, 3]]],
+  Q: [4, O_, [[2.6, 1.6], [4.2, -0.2]]],
+  R: [4, [[0, 0], [0, 6], [3, 6], [4, 5], [4, 4], [3, 3], [0, 3]], [[2, 3], [4, 0]]],
+  S: [4, [[4, 5], [3, 6], [1, 6], [0, 5], [0, 4], [1, 3], [3, 3], [4, 2], [4, 1], [3, 0], [1, 0], [0, 1]]],
+  T: [4, [[0, 6], [4, 6]], [[2, 6], [2, 0]]],
+  U: [4, [[0, 6], [0, 1], [1, 0], [3, 0], [4, 1], [4, 6]]],
+  V: [4, [[0, 6], [2, 0], [4, 6]]],
+  W: [5, [[0, 6], [1.25, 0], [2.5, 4], [3.75, 0], [5, 6]]],
+  X: [4, [[0, 0], [4, 6]], [[0, 6], [4, 0]]],
+  Y: [4, [[0, 6], [2, 3], [4, 6]], [[2, 3], [2, 0]]],
+  Z: [4, [[0, 6], [4, 6], [0, 0], [4, 0]]],
+  0: [4, O_, [[0.5, 1], [3.5, 5]]],
+  1: [3, [[0.4, 4.8], [1.6, 6], [1.6, 0]], [[0.2, 0], [3, 0]]],
+  2: [4, [[0, 5], [1, 6], [3, 6], [4, 5], [4, 4], [0, 0], [4, 0]]],
+  3: [4, [[0, 5], [1, 6], [3, 6], [4, 5], [4, 4], [3, 3], [1.5, 3]], [[3, 3], [4, 2], [4, 1], [3, 0], [1, 0], [0, 1]]],
+  4: [4, [[3, 0], [3, 6], [0, 2], [4, 2]]],
+  5: [4, [[4, 6], [0, 6], [0, 3.5], [3, 3.5], [4, 2.5], [4, 1], [3, 0], [1, 0], [0, 1]]],
+  6: [4, [[4, 5], [3, 6], [1, 6], [0, 5], [0, 1], [1, 0], [3, 0], [4, 1], [4, 2.5], [3, 3.5], [0, 3.5]]],
+  7: [4, [[0, 6], [4, 6], [1.5, 0]]],
+  8: [4, [[1, 3], [0, 4], [0, 5], [1, 6], [3, 6], [4, 5], [4, 4], [3, 3], [1, 3], [0, 2], [0, 1], [1, 0], [3, 0], [4, 1], [4, 2], [3, 3]]],
+  9: [4, [[0, 1], [1, 0], [3, 0], [4, 1], [4, 5], [3, 6], [1, 6], [0, 5], [0, 3.5], [1, 2.5], [4, 2.5]]],
+  '!': [1, [[0.5, 6], [0.5, 1.8]], [[0.5, 0.7], [0.5, 0]]],
+  ' ': [2.5],
+};
+
+function cleanName(s) {
+  return (s || '').toUpperCase().split('').filter(c => GLYPHS[c]).join('').replace(/^ +| +$/g, '');
+}
+
+function layoutText(name, H, R, letterGapUnits) {
+  const chars = cleanName(name).split('');
+  if (!chars.length) return null;
+  const gap = letterGapUnits;
+  let wUnits = 0;
+  chars.forEach((c, i) => { wUnits += GLYPHS[c][0] + (i ? gap : 0); });
+  const maxArc = 0.62 * 2 * Math.PI * R;
+  let u = H / 6, warn = null;
+  if (wUnits * u > maxArc) {
+    u = maxArc / wUnits;
+    warn = 'Name is long, so letters were shrunk to ' + (u * 6).toFixed(1) + ' mm tall.';
+  }
+  const Hh = u * 6, W = wUnits * u;
+  const strokes = [], ties = [];
+  let x0 = -W / 2;
+  chars.forEach((c, ci) => {
+    if (ci) x0 += gap * u;
+    const g = GLYPHS[c];
+    const tops = [], bots = [];
+    for (let s = 1; s < g.length; s++) {
+      strokes.push(g[s].map(([x, y]) => [x0 + x * u, (y - 3) * u]));
+      for (const [x, y] of g[s]) {
+        if (y >= 5.85 && !tops.some(t => Math.abs(t - x) < 0.6)) tops.push(x);
+        if (y <= 0.15 && y >= -0.05 && !bots.some(t => Math.abs(t - x) < 0.6)) bots.push(x);
+      }
+    }
+    tops.forEach(x => ties.push([x0 + x * u, 1]));
+    bots.forEach(x => ties.push([x0 + x * u, -1]));
+    x0 += g[0] * u;
+  });
+  return { strokes, ties, W, H: Hh, warn, chars: chars.length };
+}
+
+/* ---------- SDF grid + surface nets ---------- */
+function buildBall(P) {
+  const t0 = Date.now();
+  const warnings = [];
+  const R = P.diameter / 2;
+  const isTPMS = P.type === 'gyroid' || P.type === 'diamond';
+  const rS = P.strut / 2, rL = P.letterDia / 2;
+  const rR = isTPMS ? rL : Math.max(rS, rL * 0.9);
+  const framed = P.nameStyle !== 'raised';
+  const text = layoutText(P.name, P.letterH, R, 1.4);
+  if (text && text.warn) warnings.push(text.warn);
+  if (text && text.H < 7) warnings.push('Letters under 7 mm tall may be hard to read in TPU.');
+
+  // radii
+  const Rc = R - rS;                     // strut shell centreline
+  let Rtext;
+  if (isTPMS) Rtext = framed ? R - rL : R + rL - 0.6;
+  else Rtext = framed ? Rc : Rc + rS + rL - 0.6;
+  const recess = 2 * rL - 0.5;
+  const gapClear = P.textGap;
+
+  // window in arc-length coordinates (x along equator, y up)
+  let xR = 0, yR = 0;
+  if (text) { xR = text.W / 2 + rL + gapClear + rR; yR = text.H / 2 + rL + gapClear + rR; }
+  const useWindow = !!text && framed;
+  function inWindow(p) {
+    if (!useWindow) return false;
+    const r = len(p);
+    const th = Math.atan2(p[0], -p[1]), ph = Math.asin(Math.max(-1, Math.min(1, p[2] / r)));
+    return Math.abs(th * R) < xR && Math.abs(ph * R) < yR;
+  }
+  const sph = (x, y, rad) => { const th = x / R, ph = y / R; return [rad * Math.cos(ph) * Math.sin(th), -rad * Math.cos(ph) * Math.cos(th), rad * Math.sin(ph)]; };
+
+  // grid
+  let h = P.voxel;
+  const outer = R + (text && !framed ? 2 * rL + 1 : 0.5);
+  let ext = outer + 3 * h;
+  let n = Math.ceil(2 * ext / h) + 1;
+  const maxPts = P.maxPoints || 9e6;
+  if (n * n * n > maxPts) {
+    h = 2 * ext / (Math.cbrt(maxPts) - 1); ext = outer + 3 * h; n = Math.ceil(2 * ext / h) + 1;
+    warnings.push('Detail reduced to ' + h.toFixed(2) + ' mm voxels to keep memory in check.');
+  }
+  const o = -ext, nn = n * n;
+  const F = new Float32Array(n * n * n);
+  const zCut = P.flat > 0 ? -R + P.flat : -1e9;
+
+  if (isTPMS) {
+    const k = 2 * Math.PI / P.cellSize;
+    const tt = Math.min(1.1, 0.65 * P.wall * k);
+    const inv = 1 / (1.3 * k);
+    const S = new Float32Array(n), C = new Float32Array(n);
+    for (let i = 0; i < n; i++) { S[i] = Math.sin(k * (o + i * h)); C[i] = Math.cos(k * (o + i * h)); }
+    const gy = P.type === 'gyroid';
+    for (let kz = 0; kz < n; kz++) {
+      const z = o + kz * h, sz = S[kz], cz = C[kz];
+      for (let j = 0; j < n; j++) {
+        const y = o + j * h, sy = S[j], cy = C[j];
+        let idx = j * n + kz * nn;
+        for (let i = 0; i < n; i++, idx++) {
+          const x = o + i * h;
+          const rad = Math.sqrt(x * x + y * y + z * z);
+          if (rad > R + 2 * h) { F[idx] = rad - R; continue; }
+          const sx = S[i], cx = C[i];
+          const f = gy ? sx * cy + sy * cz + sz * cx : sx * sy * sz + sx * cy * cz + cx * sy * cz + cx * cy * sz;
+          let v = (Math.abs(f) - tt) * inv;
+          let lim = R;
+          if (useWindow && rad > R - recess - 2 && inWindow([x, y, z])) lim = R - recess;
+          const sd = rad - lim;
+          F[idx] = v > sd ? v : sd;
+        }
+      }
+    }
+  } else {
+    F.fill(1e3);
+  }
+
+  const h2 = 2 * h;
+  let capsules = 0;
+  function capsule(a, b, r) {
+    capsules++;
+    const ax = a[0], ay = a[1], az = a[2];
+    const bx = b[0] - ax, by = b[1] - ay, bz = b[2] - az;
+    const bb = bx * bx + by * by + bz * bz || 1e-12;
+    const pad = r + h2;
+    const i0 = Math.max(0, Math.floor((Math.min(a[0], b[0]) - pad - o) / h)), i1 = Math.min(n - 1, Math.ceil((Math.max(a[0], b[0]) + pad - o) / h));
+    const j0 = Math.max(0, Math.floor((Math.min(a[1], b[1]) - pad - o) / h)), j1 = Math.min(n - 1, Math.ceil((Math.max(a[1], b[1]) + pad - o) / h));
+    const k0 = Math.max(0, Math.floor((Math.min(a[2], b[2]) - pad - o) / h)), k1 = Math.min(n - 1, Math.ceil((Math.max(a[2], b[2]) + pad - o) / h));
+    for (let k = k0; k <= k1; k++) {
+      const pz = o + k * h - az;
+      for (let j = j0; j <= j1; j++) {
+        const py = o + j * h - ay;
+        let idx = i0 + j * n + k * nn;
+        for (let i = i0; i <= i1; i++, idx++) {
+          const px = o + i * h - ax;
+          let t = (px * bx + py * by + pz * bz) / bb;
+          t = t < 0 ? 0 : t > 1 ? 1 : t;
+          const dx = px - bx * t, dy = py - by * t, dz = pz - bz * t;
+          const d = Math.sqrt(dx * dx + dy * dy + dz * dz) - r;
+          if (d < F[idx]) F[idx] = d;
+        }
+      }
+    }
+  }
+  function slerpArc(a, b, rad, r, skipWin) {
+    const ang = Math.acos(Math.max(-1, Math.min(1, dot(a, b))));
+    const ns = Math.max(1, Math.ceil(ang * rad / 0.8));
+    const sa = Math.sin(ang);
+    let prev = scale(a, rad);
+    for (let s = 1; s <= ns; s++) {
+      const t = s / ns;
+      let q;
+      if (sa < 1e-6) q = norm([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]);
+      else { const w1 = Math.sin((1 - t) * ang) / sa, w2 = Math.sin(t * ang) / sa; q = [a[0] * w1 + b[0] * w2, a[1] * w1 + b[1] * w2, a[2] * w1 + b[2] * w2]; }
+      q = scale(q, rad);
+      const m = [(prev[0] + q[0]) / 2, (prev[1] + q[1]) / 2, (prev[2] + q[2]) / 2];
+      if (!(skipWin && inWindow(m)) && Math.max(prev[2], q[2]) > zCut - r) capsule(prev, q, r);
+      prev = q;
+    }
+  }
+  function planarPath(pts2, rad, r) {
+    for (let s = 0; s < pts2.length - 1; s++) {
+      const [x1, y1] = pts2[s], [x2, y2] = pts2[s + 1];
+      const L = Math.hypot(x2 - x1, y2 - y1);
+      const ns = Math.max(1, Math.ceil(L / 0.7));
+      let prev = sph(x1, y1, rad);
+      for (let q = 1; q <= ns; q++) {
+        const t = q / ns;
+        const cur = sph(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, rad);
+        capsule(prev, cur, r);
+        prev = cur;
+      }
+    }
+  }
+
+  // strut lattices
+  let graphInfo = '';
+  if (!isTPMS) {
+    const g = P.type === 'geodesic' ? geodesicGraph(P.freq) : voronoiGraph(P.cells, P.seed, P.jitter);
+    graphInfo = g.edges.length + ' struts';
+    for (const [a, b] of g.edges) slerpArc(g.verts[a], g.verts[b], Rc, rS, true);
+    if (P.inner) {
+      const Ri = R * P.innerRatio;
+      for (const [a, b] of g.edges) slerpArc(g.verts[a], g.verts[b], Ri, rS, true);
+      for (const v of g.verts) {
+        const outerP = scale(v, Rc);
+        if (inWindow(outerP)) continue;
+        capsule(scale(v, Ri), outerP, rS);
+      }
+    }
+    if (P.flat > 0) {
+      const zr = zCut + rS * 0.8;
+      if (Math.abs(zr) < Rc) {
+        const rho = Math.sqrt(Rc * Rc - zr * zr);
+        const ns = Math.max(12, Math.ceil(2 * Math.PI * rho / 1.0));
+        for (let s = 0; s < ns; s++) {
+          const a1 = 2 * Math.PI * s / ns, a2 = 2 * Math.PI * (s + 1) / ns;
+          capsule([rho * Math.cos(a1), rho * Math.sin(a1), zr], [rho * Math.cos(a2), rho * Math.sin(a2), zr], rS);
+        }
+      }
+    }
+  }
+
+  // name
+  if (text) {
+    for (const st of text.strokes) planarPath(st, Rtext, rL);
+    if (framed) {
+      const railRad = isTPMS ? R - rR : Rc;
+      planarPath([[-xR, yR], [xR, yR]], railRad, rR);
+      planarPath([[-xR, -yR], [xR, -yR]], railRad, rR);
+      planarPath([[-xR, -yR], [-xR, yR]], railRad, rR);
+      planarPath([[xR, -yR], [xR, yR]], railRad, rR);
+      if (!isTPMS) {
+        for (const [x, side] of text.ties) planarPath([[x, side * text.H / 2], [x, side * yR]], Rtext, rL * 0.85);
+      }
+    }
+  }
+
+  // flat bottom
+  if (P.flat > 0) {
+    for (let k = 0; k < n; k++) {
+      const z = o + k * h;
+      if (z > zCut + h) break;
+      const cut = zCut - z;
+      const base = k * nn;
+      for (let q = 0; q < nn; q++) if (F[base + q] < cut) F[base + q] = cut;
+    }
+  }
+  const tField = Date.now();
+
+  // support-blocker volumes (only meaningful for hollow strut balls)
+  const blockers = [];
+  if (!isTPMS && P.blockInside) {
+    const b = newBuilder();
+    const rOut = Rc - rS - 0.4;
+    addSphere(b, rOut, false);
+    if (P.inner) {
+      const Ri = R * P.innerRatio;
+      addSphere(b, Ri + rS + 0.4, true);          // hollow gap between inner ball and shell
+      if (Ri - rS - 0.4 > 1) addSphere(b, Ri - rS - 0.4, false); // inside the inner ball
+    }
+    blockers.push(finishBuilder(b, 'Support blocker - inside ball'));
+  }
+  if (!isTPMS && P.blockName && text && framed) {
+    const b = newBuilder();
+    const th1 = (xR + 2) / R, ph1 = Math.min(1.45, (yR + 2) / R);
+    const r0 = Rtext - Math.max(rL, rR) - 1.2, r1 = Rtext + Math.max(rL, rR) + 1.5;
+    const nu = Math.max(2, Math.ceil(2 * th1 * R / 2)), nv = Math.max(2, Math.ceil(2 * ph1 * R / 2));
+    addCurvedBox(b, nu, nv, (iu, iv, iw) => {
+      const th = -th1 + 2 * th1 * iu / nu, ph = -ph1 + 2 * ph1 * iv / nv, r = iw ? r1 : r0;
+      return [r * Math.cos(ph) * Math.sin(th), -r * Math.cos(ph) * Math.cos(th), r * Math.sin(ph)];
+    });
+    blockers.push(finishBuilder(b, 'Support blocker - name'));
+  }
+  if (P.blockTop) {
+    // box over the top part of the ball: overhangs inside it get no support
+    const frac = P.blockFrac || 2 / 3;
+    const z0 = -R + 2 * R * (1 - frac), z1 = R + 3, m = R + 3;
+    const b = newBuilder();
+    addCurvedBox(b, 1, 1, (iu, iv, iw) => [iu ? m : -m, iw ? m : -m, iv ? z1 : z0]);
+    blockers.push(finishBuilder(b, (Math.abs(frac - 2 / 3) < 1e-6 ? 'Support blocker - top 2/3' : 'Support blocker - top ' + Math.round(frac * 100) + '%')));
+  }
+
+  const mesh = surfaceNets(F, n, h, o);
+  const stats = meshStats(mesh);
+  stats.timeField = tField - t0;
+  stats.timeMesh = Date.now() - tField;
+  stats.voxel = h;
+  stats.grid = n;
+  stats.capsules = capsules;
+  stats.graphInfo = graphInfo;
+  stats.textHeight = text ? text.H : 0;
+  return { mesh, stats, warnings, blockers };
+}
+
+/* ---------- simple closed-mesh builders for blocker volumes ---------- */
+function newBuilder() { return { p: [], t: [] }; }
+function shellVolume(b, t0) {
+  const p = b.p, t = b.t; let v = 0;
+  for (let i = t0; i < t.length; i += 3) {
+    const a = t[i] * 3, c = t[i + 1] * 3, d = t[i + 2] * 3;
+    v += p[a] * (p[c + 1] * p[d + 2] - p[c + 2] * p[d + 1]) - p[a + 1] * (p[c] * p[d + 2] - p[c + 2] * p[d]) + p[a + 2] * (p[c] * p[d + 1] - p[c + 1] * p[d]);
+  }
+  return v / 6;
+}
+function orientShell(b, t0, wantInward) {
+  const v = shellVolume(b, t0);
+  if ((v > 0) === !!wantInward) for (let i = t0; i < b.t.length; i += 3) { const x = b.t[i + 1]; b.t[i + 1] = b.t[i + 2]; b.t[i + 2] = x; }
+}
+function addSphere(b, r, inward) {
+  const t0 = b.t.length, base = b.p.length / 3;
+  const nLat = Math.max(12, Math.ceil(Math.PI * r / 2)), nLon = 2 * nLat;
+  b.p.push(0, 0, r);
+  for (let i = 1; i < nLat; i++) {
+    const ph = Math.PI * i / nLat, z = r * Math.cos(ph), s = r * Math.sin(ph);
+    for (let j = 0; j < nLon; j++) { const a = 2 * Math.PI * j / nLon; b.p.push(s * Math.cos(a), s * Math.sin(a), z); }
+  }
+  b.p.push(0, 0, -r);
+  const ring = i => base + 1 + (i - 1) * nLon, bottom = base + 1 + (nLat - 1) * nLon;
+  for (let j = 0; j < nLon; j++) {
+    const j2 = (j + 1) % nLon;
+    b.t.push(base, ring(1) + j, ring(1) + j2);
+    for (let i = 1; i < nLat - 1; i++) {
+      const a = ring(i) + j, c = ring(i) + j2, d = ring(i + 1) + j, e = ring(i + 1) + j2;
+      b.t.push(a, d, e, a, e, c);
+    }
+    b.t.push(bottom, ring(nLat - 1) + j2, ring(nLat - 1) + j);
+  }
+  orientShell(b, t0, inward);
+}
+function addCurvedBox(b, nu, nv, map) {
+  const t0 = b.t.length, base = b.p.length / 3;
+  const id = (iu, iv, iw) => base + iw * (nu + 1) * (nv + 1) + iv * (nu + 1) + iu;
+  for (let iw = 0; iw < 2; iw++) for (let iv = 0; iv <= nv; iv++) for (let iu = 0; iu <= nu; iu++) b.p.push(...map(iu, iv, iw));
+  const q = (a, c, d, e) => b.t.push(a, c, d, a, d, e);
+  for (let iv = 0; iv < nv; iv++) for (let iu = 0; iu < nu; iu++) {
+    q(id(iu, iv, 0), id(iu, iv + 1, 0), id(iu + 1, iv + 1, 0), id(iu + 1, iv, 0));
+    q(id(iu, iv, 1), id(iu + 1, iv, 1), id(iu + 1, iv + 1, 1), id(iu, iv + 1, 1));
+  }
+  for (let iu = 0; iu < nu; iu++) {
+    q(id(iu, 0, 0), id(iu + 1, 0, 0), id(iu + 1, 0, 1), id(iu, 0, 1));
+    q(id(iu, nv, 0), id(iu, nv, 1), id(iu + 1, nv, 1), id(iu + 1, nv, 0));
+  }
+  for (let iv = 0; iv < nv; iv++) {
+    q(id(0, iv, 0), id(0, iv, 1), id(0, iv + 1, 1), id(0, iv + 1, 0));
+    q(id(nu, iv, 0), id(nu, iv + 1, 0), id(nu, iv + 1, 1), id(nu, iv, 1));
+  }
+  orientShell(b, t0, false);
+}
+function finishBuilder(b, name) {
+  return { name, positions: new Float32Array(b.p), indices: new Uint32Array(b.t) };
+}
+
+/* ---------- thick perforated shell with deep ribs (v3, modelled on airless-ball designs) ---------- */
+function buildRibBall(P) {
+  const t0 = Date.now();
+  const warnings = [];
+  const R = P.diameter / 2;
+  const T = Math.min(P.shell, R * 0.4);       // radial shell thickness
+  const Ro = R, Ri = R - T, Rm = R - T / 2;
+  const w = P.rib, wL = P.letterW;
+  const text = layoutText(P.name, P.letterH, Rm, 1.5);
+  if (text && text.warn) warnings.push(text.warn);
+  if (text && text.H < 6) warnings.push('Letters under 6 mm tall get hard to read.');
+  const gap = P.textGap;
+  let xR = 0, yR = 0;
+  if (text) { xR = text.W / 2 + wL / 2 + gap + w / 2; yR = text.H / 2 + wL / 2 + gap + w / 2; }
+  function inWindow(p) {
+    if (!text) return false;
+    const r = len(p);
+    const th = Math.atan2(p[0], -p[1]), ph = Math.asin(Math.max(-1, Math.min(1, p[2] / r)));
+    return Math.abs(th * Rm) < xR && Math.abs(ph * Rm) < yR;
+  }
+  const dirOf = (x, y) => { const th = x / Rm, ph = y / Rm; return [Math.cos(ph) * Math.sin(th), -Math.cos(ph) * Math.cos(th), Math.sin(ph)]; };
+
+  // grid
+  let h = P.voxel;
+  const outer = R + 0.3;
+  let ext = outer + 3 * h, n = Math.ceil(2 * ext / h) + 1;
+  const maxPts = P.maxPoints || 9e6;
+  if (n * n * n > maxPts) {
+    h = 2 * ext / (Math.cbrt(maxPts) - 1); ext = outer + 3 * h; n = Math.ceil(2 * ext / h) + 1;
+    warnings.push('Detail reduced to ' + h.toFixed(2) + ' mm voxels to keep memory in check.');
+  }
+  if (w < 2.2 * h) warnings.push('Ribs are thin for this detail level; use Fine for a cleaner mesh.');
+  const o = -ext, nn = n * n, h2 = 2 * h;
+  const F = new Float32Array(n * n * n).fill(1e3);
+  let stamps = 0;
+
+  // rib along great-circle arc a->b (unit vectors), width wid (mm at mid radius), radial band [rin, rout]
+  function ribArc(a, b, wid, rin, rout) {
+    let nv = cross(a, b); const nl = len(nv);
+    if (nl < 1e-9) return;
+    nv = scale(nv, 1 / nl);
+    const na = cross(nv, a), bn = cross(b, nv);
+    const rm = (rin + rout) / 2, half = wid / 2;
+    stamps++;
+    // bbox from arc samples at both radii
+    let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+    const ang = Math.acos(Math.max(-1, Math.min(1, dot(a, b))));
+    const ns = Math.max(2, Math.ceil(ang * rout / 0.8));
+    for (let s = 0; s <= ns; s++) {
+      const tt = s / ns, sa = Math.sin(ang);
+      const u = sa < 1e-6 ? a : [0, 1, 2].map(c => (Math.sin((1 - tt) * ang) * a[c] + Math.sin(tt * ang) * b[c]) / sa);
+      for (const r of [rin, rout]) for (let c = 0; c < 3; c++) { const v = u[c] * r; if (v < mn[c]) mn[c] = v; if (v > mx[c]) mx[c] = v; }
+    }
+    const pad = half * rout / rm + h2;
+    const i0 = Math.max(0, Math.floor((mn[0] - pad - o) / h)), i1 = Math.min(n - 1, Math.ceil((mx[0] + pad - o) / h));
+    const j0 = Math.max(0, Math.floor((mn[1] - pad - o) / h)), j1 = Math.min(n - 1, Math.ceil((mx[1] + pad - o) / h));
+    const k0 = Math.max(0, Math.floor((mn[2] - pad - o) / h)), k1 = Math.min(n - 1, Math.ceil((mx[2] + pad - o) / h));
+    for (let k = k0; k <= k1; k++) {
+      const pz = o + k * h;
+      for (let j = j0; j <= j1; j++) {
+        const py = o + j * h;
+        let idx = i0 + j * n + k * nn;
+        for (let i = i0; i <= i1; i++, idx++) {
+          const px = o + i * h;
+          const r = Math.sqrt(px * px + py * py + pz * pz);
+          const dr = rin - r > r - rout ? rin - r : r - rout;
+          if (dr >= F[idx] || r < 1e-6) continue;
+          const ux = px / r, uy = py / r, uz = pz / r;
+          let dt;
+          if (ux * na[0] + uy * na[1] + uz * na[2] >= 0 && ux * bn[0] + uy * bn[1] + uz * bn[2] >= 0) {
+            dt = Math.abs(ux * nv[0] + uy * nv[1] + uz * nv[2]);
+          } else {
+            const ax = ux - a[0], ay = uy - a[1], az = uz - a[2], bx = ux - b[0], by = uy - b[1], bz = uz - b[2];
+            dt = Math.sqrt(Math.min(ax * ax + ay * ay + az * az, bx * bx + by * by + bz * bz));
+          }
+          let d = dt * rm - half;
+          if (dr > d) d = dr;
+          if (d < F[idx]) F[idx] = d;
+        }
+      }
+    }
+  }
+  // lattice edge, split so the name window can be cleared
+  function latticeEdge(a, b, rin, rout, skipWin) {
+    const ang = Math.acos(Math.max(-1, Math.min(1, dot(a, b))));
+    const ns = Math.max(1, Math.ceil(ang * rout / 1.2));
+    const sa = Math.sin(ang);
+    const at = tt => sa < 1e-6 ? a : norm([0, 1, 2].map(c => (Math.sin((1 - tt) * ang) * a[c] + Math.sin(tt * ang) * b[c]) / sa));
+    let runStart = null, prev = a;
+    for (let s = 1; s <= ns; s++) {
+      const q = at(s / ns);
+      const m = norm([prev[0] + q[0], prev[1] + q[1], prev[2] + q[2]]);
+      const keep = !(skipWin && inWindow(scale(m, Rm)));
+      if (keep && runStart === null) runStart = prev;
+      if (!keep && runStart !== null) { ribArc(runStart, prev, w, rin, rout); runStart = null; }
+      prev = q;
+    }
+    if (runStart !== null) ribArc(runStart, prev, w, rin, rout);
+  }
+  function path2D(pts, wid, rin, rout) {
+    for (let s = 0; s < pts.length - 1; s++) {
+      const [x1, y1] = pts[s], [x2, y2] = pts[s + 1];
+      const L = Math.hypot(x2 - x1, y2 - y1), ns = Math.max(1, Math.ceil(L / 1.0));
+      let prev = dirOf(x1, y1);
+      for (let q = 1; q <= ns; q++) {
+        const cur = dirOf(x1 + (x2 - x1) * q / ns, y1 + (y2 - y1) * q / ns);
+        ribArc(prev, cur, wid, rin, rout); prev = cur;
+      }
+    }
+  }
+
+  const g = P.type === 'geodesic' ? geodesicGraph(P.freq) : voronoiGraph(P.cells, P.seed, P.jitter);
+  for (const [a, b] of g.edges) latticeEdge(g.verts[a], g.verts[b], Ri, Ro, true);
+
+  let Rin2 = 0, Tin = 0;
+  if (P.inner) {
+    Rin2 = Math.max(4, R * P.innerRatio); Tin = Math.min(T, Rin2 * 0.4);
+    for (const [a, b] of g.edges) latticeEdge(g.verts[a], g.verts[b], Rin2 - Tin, Rin2, true);
+    const capR = Math.max(0.7, w / 2);
+    for (const v of g.verts) {
+      if (inWindow(scale(v, Rm))) continue;
+      const A = scale(v, Rin2 - Tin / 2), B = scale(v, Ri + T / 2);
+      stampCapsule(A, B, capR);
+    }
+  }
+  function stampCapsule(a, b, r) {
+    const bx = b[0] - a[0], by = b[1] - a[1], bz = b[2] - a[2], bb = bx * bx + by * by + bz * bz || 1e-12, pad = r + h2;
+    const i0 = Math.max(0, Math.floor((Math.min(a[0], b[0]) - pad - o) / h)), i1 = Math.min(n - 1, Math.ceil((Math.max(a[0], b[0]) + pad - o) / h));
+    const j0 = Math.max(0, Math.floor((Math.min(a[1], b[1]) - pad - o) / h)), j1 = Math.min(n - 1, Math.ceil((Math.max(a[1], b[1]) + pad - o) / h));
+    const k0 = Math.max(0, Math.floor((Math.min(a[2], b[2]) - pad - o) / h)), k1 = Math.min(n - 1, Math.ceil((Math.max(a[2], b[2]) + pad - o) / h));
+    for (let k = k0; k <= k1; k++) for (let j = j0; j <= j1; j++) {
+      let idx = i0 + j * n + k * nn;
+      for (let i = i0; i <= i1; i++, idx++) {
+        const px = o + i * h - a[0], py = o + j * h - a[1], pz = o + k * h - a[2];
+        let tt = (px * bx + py * by + pz * bz) / bb; tt = tt < 0 ? 0 : tt > 1 ? 1 : tt;
+        const dx = px - bx * tt, dy = py - by * tt, dz = pz - bz * tt;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz) - r;
+        if (d < F[idx]) F[idx] = d;
+      }
+    }
+  }
+
+  // name: letters, frame and ties are ribs through the full shell depth
+  if (text) {
+    for (const st of text.strokes) path2D(st, wL, Ri, Ro);
+    path2D([[-xR, yR], [xR, yR]], w, Ri, Ro);
+    path2D([[-xR, -yR], [xR, -yR]], w, Ri, Ro);
+    path2D([[-xR, -yR], [-xR, yR]], w, Ri, Ro);
+    path2D([[xR, -yR], [xR, yR]], w, Ri, Ro);
+    for (const [x, side] of text.ties) path2D([[x, side * text.H / 2], [x, side * yR]], wL, Ri, Ro);
+  }
+  const tField = Date.now();
+
+  // support blockers
+  const blockers = [];
+  if (P.blockInside) {
+    const b = newBuilder();
+    addSphere(b, Ri - 0.4, false);
+    if (P.inner) {
+      addSphere(b, Rin2 + 0.4, true);
+      if (Rin2 - Tin - 0.4 > 1) addSphere(b, Rin2 - Tin - 0.4, false);
+    }
+    blockers.push(finishBuilder(b, 'Support blocker - inside ball'));
+  }
+  if (P.blockName && text) {
+    const b = newBuilder();
+    const th1 = (xR + 2) / Rm, ph1 = Math.min(1.45, (yR + 2) / Rm);
+    const r0 = Ri - 1.0, r1 = Ro + 1.5;
+    const nu = Math.max(2, Math.ceil(2 * th1 * R / 2)), nv = Math.max(2, Math.ceil(2 * ph1 * R / 2));
+    addCurvedBox(b, nu, nv, (iu, iv, iw) => {
+      const th = -th1 + 2 * th1 * iu / nu, ph = -ph1 + 2 * ph1 * iv / nv, r = iw ? r1 : r0;
+      return [r * Math.cos(ph) * Math.sin(th), -r * Math.cos(ph) * Math.cos(th), r * Math.sin(ph)];
+    });
+    blockers.push(finishBuilder(b, 'Support blocker - name'));
+  }
+
+  const mesh = surfaceNets(F, n, h, o);
+  const stats = meshStats(mesh);
+  Object.assign(stats, { timeField: tField - t0, timeMesh: Date.now() - tField, voxel: h, grid: n, capsules: stamps,
+    graphInfo: g.edges.length + ' ribs', textHeight: text ? text.H : 0, holes: P.type === 'geodesic' ? 20 * P.freq * P.freq : g.verts.length });
+  return { mesh, stats, warnings, blockers };
+}
+
+/* ---------- print-time estimate ----------
+   Per layer: max(min layer time, extruded volume / max flow + k * contours).
+   k = 0.734 s per contour was fitted to a Bambu Studio estimate for a 40 mm airless ball
+   (A1 mini, Generic TPU 3.2 mm3/s, 0.16 mm, 3 walls: 4803 s). Rough: confirm in the slicer. */
+function estimatePrintTime(m, opt) {
+  const layer = opt.layer || 0.2, first = 0.2, Q = opt.flow || 3.2, k = opt.k || 0.734, tmin = opt.minLayer || 8, T0 = opt.T0 || 120;
+  const p = m.positions, ix = m.indices, nt = ix.length / 3;
+  let zmin = 1e9, zmax = -1e9;
+  for (let i = 2; i < p.length; i += 3) { if (p[i] < zmin) zmin = p[i]; if (p[i] > zmax) zmax = p[i]; }
+  const H = zmax - zmin, nL = 1 + Math.max(0, Math.floor((H - first) / layer));
+  const zAt = L => zmin + (L === 0 ? first / 2 : first + (L - 0.5) * layer);
+  const area = new Float64Array(nL), loops = new Int32Array(nL);
+  // bucket triangles by layer range
+  const buckets = Array.from({ length: nL }, () => []);
+  for (let t = 0; t < nt; t++) {
+    const a = ix[3 * t] * 3 + 2, b = ix[3 * t + 1] * 3 + 2, c = ix[3 * t + 2] * 3 + 2;
+    const lo = Math.min(p[a], p[b], p[c]), hi = Math.max(p[a], p[b], p[c]);
+    const L0 = Math.max(0, Math.ceil((lo - zmin - first) / layer + 0.5)), L1 = Math.min(nL - 1, Math.floor((hi - zmin - first) / layer + 0.5));
+    for (let L = Math.max(0, L0 - 1); L <= L1 + 1 && L < nL; L++) { const z = zAt(L); if (z > lo && z < hi) buckets[L].push(t); }
+  }
+  for (let L = 0; L < nL; L++) {
+    const z = zAt(L), parent = new Map();
+    const find = x => { let r = x; while (parent.get(r) !== r) r = parent.get(r); let y = x; while (parent.get(y) !== r) { const nx = parent.get(y); parent.set(y, r); y = nx; } return r; };
+    const add = x => { if (!parent.has(x)) parent.set(x, x); };
+    let A = 0;
+    for (const t of buckets[L]) {
+      const v = [ix[3 * t], ix[3 * t + 1], ix[3 * t + 2]];
+      const pts = [], keys = [];
+      for (let e = 0; e < 3; e++) {
+        const i = v[e], j = v[(e + 1) % 3];
+        const zi = p[3 * i + 2] - z, zj = p[3 * j + 2] - z;
+        if ((zi < 0) !== (zj < 0)) {
+          const s = zi / (zi - zj);
+          pts.push([p[3 * i] + (p[3 * j] - p[3 * i]) * s, p[3 * i + 1] + (p[3 * j + 1] - p[3 * i + 1]) * s]);
+          keys.push(i < j ? i * 4194304 + j : j * 4194304 + i);
+        }
+      }
+      if (pts.length !== 2) continue;
+      // orient with face normal so the shoelace sum gives area
+      const i0 = 3 * v[0], i1 = 3 * v[1], i2 = 3 * v[2];
+      const ux = p[i1] - p[i0], uy = p[i1 + 1] - p[i0 + 1], uz = p[i1 + 2] - p[i0 + 2], wx = p[i2] - p[i0], wy = p[i2 + 1] - p[i0 + 1], wz = p[i2 + 2] - p[i0 + 2];
+      const nx = uy * wz - uz * wy, ny = uz * wx - ux * wz;
+      let [P0, P1] = pts; const dx = P1[0] - P0[0], dy = P1[1] - P0[1];
+      if (dy * nx - dx * ny < 0) { const tmp = P0; P0 = P1; P1 = tmp; }
+      A += (P0[0] * P1[1] - P1[0] * P0[1]) / 2;
+      add(keys[0]); add(keys[1]);
+      const ra = find(keys[0]), rb = find(keys[1]); if (ra !== rb) parent.set(ra, rb);
+    }
+    let cnt = 0; for (const [x, y] of parent) if (x === y) cnt++;
+    area[L] = A; loops[L] = cnt;
+  }
+  let T = T0, vol = 0;
+  for (let L = 0; L < nL; L++) {
+    const v = area[L] * (L === 0 ? first : layer); vol += v;
+    T += Math.max(tmin, v / Q + k * loops[L]);
+  }
+  return { seconds: T, layers: nL, volume: vol };
+}
+
+function surfaceNets(F, n, h, o) {
+  const nn = n * n;
+  const cellV = new Int32Array(n * n * n).fill(-1);
+  const pos = [];
+  let nv = 0;
+  const cornerOff = [0, 1, n, n + 1, nn, nn + 1, nn + n, nn + n + 1];
+  const cornerXYZ = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]];
+  const edgesC = [];
+  for (let c = 0; c < 8; c++) for (const b of [1, 2, 4]) if (!(c & b)) edgesC.push([c, c | b]);
+  const val = new Float64Array(8);
+  for (let k = 0; k < n - 1; k++) for (let j = 0; j < n - 1; j++) {
+    let idx = j * n + k * nn;
+    for (let i = 0; i < n - 1; i++, idx++) {
+      let mask = 0;
+      for (let c = 0; c < 8; c++) { const v = F[idx + cornerOff[c]]; val[c] = v; if (v < 0) mask |= 1 << c; }
+      if (mask === 0 || mask === 255) continue;
+      let sx = 0, sy = 0, sz = 0, cnt = 0;
+      for (let e = 0; e < 12; e++) {
+        const [a, b] = edgesC[e];
+        const va = val[a], vb = val[b];
+        if ((va < 0) === (vb < 0)) continue;
+        const t = va / (va - vb);
+        const A = cornerXYZ[a], B = cornerXYZ[b];
+        sx += A[0] + (B[0] - A[0]) * t; sy += A[1] + (B[1] - A[1]) * t; sz += A[2] + (B[2] - A[2]) * t; cnt++;
+      }
+      pos.push(o + (i + sx / cnt) * h, o + (j + sy / cnt) * h, o + (k + sz / cnt) * h);
+      cellV[idx] = nv++;
+    }
+  }
+  const tris = [];
+  const quad = (a, b, c, d, flip) => {
+    if (a < 0 || b < 0 || c < 0 || d < 0) return;
+    if (flip) tris.push(a, d, c, a, c, b); else tris.push(a, b, c, a, c, d);
+  };
+  for (let k = 1; k < n - 1; k++) for (let j = 1; j < n - 1; j++) {
+    let idx = 1 + j * n + k * nn;
+    for (let i = 1; i < n - 1; i++, idx++) {
+      const in0 = F[idx] < 0;
+      // x edge
+      if (in0 !== (F[idx + 1] < 0)) quad(cellV[idx - n - nn], cellV[idx - nn], cellV[idx], cellV[idx - n], !in0);
+      // y edge
+      if (in0 !== (F[idx + n] < 0)) quad(cellV[idx - 1 - nn], cellV[idx - 1], cellV[idx], cellV[idx - nn], !in0);
+      // z edge
+      if (in0 !== (F[idx + nn] < 0)) quad(cellV[idx - 1 - n], cellV[idx - n], cellV[idx], cellV[idx - 1], !in0);
+    }
+  }
+  return { positions: new Float32Array(pos), indices: new Uint32Array(tris) };
+}
+
+function meshStats(m) {
+  const p = m.positions, ix = m.indices;
+  let vol = 0, minz = 1e9, maxz = -1e9, minx = 1e9, maxx = -1e9, miny = 1e9, maxy = -1e9;
+  for (let i = 0; i < p.length; i += 3) {
+    if (p[i] < minx) minx = p[i]; if (p[i] > maxx) maxx = p[i];
+    if (p[i + 1] < miny) miny = p[i + 1]; if (p[i + 1] > maxy) maxy = p[i + 1];
+    if (p[i + 2] < minz) minz = p[i + 2]; if (p[i + 2] > maxz) maxz = p[i + 2];
+  }
+  for (let t = 0; t < ix.length; t += 3) {
+    const a = ix[t] * 3, b = ix[t + 1] * 3, c = ix[t + 2] * 3;
+    vol += (p[a] * (p[b + 1] * p[c + 2] - p[b + 2] * p[c + 1]) - p[a + 1] * (p[b] * p[c + 2] - p[b + 2] * p[c]) + p[a + 2] * (p[b] * p[c + 1] - p[b + 1] * p[c])) / 6;
+  }
+  return { tris: ix.length / 3, verts: p.length / 3, volume: vol, size: [maxx - minx, maxy - miny, maxz - minz], minz };
+}
+
+/* ---------- exporters ---------- */
+function toSTL(m, title) {
+  const p = m.positions, ix = m.indices, nt = ix.length / 3;
+  const zoff = -meshStats(m).minz;
+  const buf = new ArrayBuffer(84 + nt * 50), dv = new DataView(buf);
+  const hdr = ('Forgecraft lattice ball ' + (title || '')).slice(0, 79);
+  for (let i = 0; i < hdr.length; i++) dv.setUint8(i, hdr.charCodeAt(i) & 127);
+  dv.setUint32(80, nt, true);
+  let off = 84;
+  for (let t = 0; t < ix.length; t += 3) {
+    const a = ix[t] * 3, b = ix[t + 1] * 3, c = ix[t + 2] * 3;
+    const ux = p[b] - p[a], uy = p[b + 1] - p[a + 1], uz = p[b + 2] - p[a + 2];
+    const vx = p[c] - p[a], vy = p[c + 1] - p[a + 1], vz = p[c + 2] - p[a + 2];
+    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const l = Math.hypot(nx, ny, nz) || 1;
+    dv.setFloat32(off, nx / l, true); dv.setFloat32(off + 4, ny / l, true); dv.setFloat32(off + 8, nz / l, true);
+    off += 12;
+    for (const q of [a, b, c]) {
+      dv.setFloat32(off, p[q], true); dv.setFloat32(off + 4, p[q + 1], true); dv.setFloat32(off + 8, p[q + 2] + zoff, true);
+      off += 12;
+    }
+    dv.setUint16(off, 0, true); off += 2;
+  }
+  return new Uint8Array(buf);
+}
+
+const esc3 = s => String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+function meshXML(parts, m, zoff) {
+  const p = m.positions, ix = m.indices;
+  let chunk = ['<mesh>\n<vertices>'];
+  for (let i = 0; i < p.length; i += 3) {
+    chunk.push('<vertex x="' + p[i].toFixed(4) + '" y="' + p[i + 1].toFixed(4) + '" z="' + (p[i + 2] + zoff).toFixed(4) + '"/>');
+    if (chunk.length >= 5000) { parts.push(chunk.join('\n') + '\n'); chunk = []; }
+  }
+  chunk.push('</vertices>\n<triangles>');
+  for (let t = 0; t < ix.length; t += 3) {
+    chunk.push('<triangle v1="' + ix[t] + '" v2="' + ix[t + 1] + '" v3="' + ix[t + 2] + '"/>');
+    if (chunk.length >= 5000) { parts.push(chunk.join('\n') + '\n'); chunk = []; }
+  }
+  chunk.push('</triangles>\n</mesh>');
+  parts.push(chunk.join('\n') + '\n');
+}
+/* One object. With blockers it is a component object (part 1 = ball, part 2.. = blockers),
+   and Metadata/model_settings.config marks the extra parts as Bambu Studio "support_blocker". */
+function to3MFModelXML(m, title, blockers, bedCenter, settings) {
+  blockers = blockers || []; settings = settings || {};
+  const zoff = -meshStats(m).minz;
+  const tr = '1 0 0 0 1 0 0 0 1 ' + bedCenter[0] + ' ' + bedCenter[1] + ' 0';
+  const parts = ['<?xml version="1.0" encoding="UTF-8"?>\n<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">\n<metadata name="Title">' + esc3(title) + '</metadata>\n<metadata name="Designer">Forgecraft Lattice Ball Generator</metadata>\n<resources>\n'];
+  parts.push('<object id="1" name="' + esc3(title) + '" type="model">\n'); meshXML(parts, m, zoff); parts.push('</object>\n');
+  blockers.forEach((b, i) => { parts.push('<object id="' + (i + 2) + '" name="' + esc3(b.name) + '" type="model">\n'); meshXML(parts, b, zoff); parts.push('</object>\n'); });
+  const rootId = blockers.length + 2;
+  parts.push('<object id="' + rootId + '" name="' + esc3(title) + '" type="model">\n<components>\n<component objectid="1"/>\n');
+  blockers.forEach((b, i) => parts.push('<component objectid="' + (i + 2) + '"/>\n'));
+  parts.push('</components>\n</object>\n</resources>\n<build>\n<item objectid="' + rootId + '" transform="' + tr + '"/>\n</build>\n</model>\n');
+  const I = '1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1';
+  // object-level settings: Bambu Studio applies these as per-object overrides
+  let cfg = '<?xml version="1.0" encoding="UTF-8"?>\n<config>\n  <object id="' + rootId + '">\n    <metadata key="name" value="' + esc3(title) + '"/>\n';
+  for (const [k, v] of Object.entries(settings)) cfg += '    <metadata key="' + esc3(k) + '" value="' + esc3(v) + '"/>\n';
+  cfg += '    <part id="1" subtype="normal_part">\n      <metadata key="name" value="' + esc3(title) + '"/>\n      <metadata key="matrix" value="' + I + '"/>\n    </part>\n';
+  blockers.forEach((b, i) => { cfg += '    <part id="' + (i + 2) + '" subtype="support_blocker">\n      <metadata key="name" value="' + esc3(b.name) + '"/>\n      <metadata key="matrix" value="' + I + '"/>\n    </part>\n'; });
+  cfg += '  </object>\n</config>\n';
+  return { model: parts.join(''), config: cfg };
+}
+
+/* CRC32 + zip (store or deflate via CompressionStream) */
+const CRC_T = (() => { const t = new Uint32Array(256); for (let i = 0; i < 256; i++) { let c = i; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[i] = c >>> 0; } return t; })();
+function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+async function deflateRaw(u8) {
+  if (typeof CompressionStream === 'undefined') return null;
+  try {
+    const cs = new CompressionStream('deflate-raw');
+    const stream = new Blob([u8]).stream().pipeThrough(cs);
+    const ab = await new Response(stream).arrayBuffer();
+    return new Uint8Array(ab);
+  } catch (e) { return null; }
+}
+async function makeZip(files) {
+  const enc = new TextEncoder();
+  const chunks = [], central = [];
+  let offset = 0;
+  const now = new Date();
+  const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  for (const f of files) {
+    const data = typeof f.data === 'string' ? enc.encode(f.data) : f.data;
+    const name = enc.encode(f.name);
+    const crc = crc32(data);
+    let comp = await deflateRaw(data), method = 8;
+    if (!comp || comp.length >= data.length) { comp = data; method = 0; }
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, method, true);
+    lh.setUint16(10, dosTime, true); lh.setUint16(12, dosDate, true); lh.setUint32(14, crc, true);
+    lh.setUint32(18, comp.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    chunks.push(new Uint8Array(lh.buffer), name, comp);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, method, true);
+    ch.setUint16(12, dosTime, true); ch.setUint16(14, dosDate, true); ch.setUint32(16, crc, true);
+    ch.setUint32(20, comp.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, name.length, true);
+    ch.setUint16(30, 0, true); ch.setUint16(32, 0, true); ch.setUint16(34, 0, true); ch.setUint16(36, 0, true); ch.setUint32(38, 0, true); ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), name);
+    offset += 30 + name.length + comp.length;
+  }
+  let cdSize = 0; central.forEach(c => cdSize += c.length);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+  return new Blob([...chunks, ...central, new Uint8Array(end.buffer)], { type: 'application/zip' });
+}
+async function make3MF(m, title, blockers, bedCenter, settings) {
+  const ct = '<?xml version="1.0" encoding="UTF-8"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/><Default Extension="config" ContentType="text/xml"/></Types>';
+  const rels = '<?xml version="1.0" encoding="UTF-8"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>';
+  const x = to3MFModelXML(m, title, blockers, bedCenter || [90, 90], settings);
+  const files = [{ name: '[Content_Types].xml', data: ct }, { name: '_rels/.rels', data: rels }, { name: '3D/3dmodel.model', data: x.model }];
+  if (x.config) files.push({ name: 'Metadata/model_settings.config', data: x.config });
+  return makeZip(files);
+}
+
+root.LatticeBall = { buildBall, buildRibBall, estimatePrintTime, layoutText, cleanName, geodesicGraph, voronoiGraph, convexHull, toSTL, make3MF, makeZip, meshStats, GLYPHS };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+
+<script>
+(function(){
+  'use strict';
+  const LB = window.LatticeBall;
+  const $ = id => document.getElementById(id);
+  const state = { type:'geodesic', quality:'normal', layer:'0.24', seed: 7 };
+  const VOX = { draft:0.4, normal:0.3, fine:0.22 };
+  const units = { diameter:' mm', shell:' mm', rib:' mm', letterH:' mm', letterDia:' mm', freq:'', cells:'', jitter:'' };
+  const sliders = Object.keys(units);
+
+  function fmt(id){ const v = +$(id).value; if (id==='jitter') return Math.round(v*100)+'%'; if (id==='freq') return (20*v*v)+' holes'; if (id==='rib'||id==='letterDia') return v.toFixed(2)+units[id]; return (Number.isInteger(v)? v : v.toFixed(1)) + units[id]; }
+  function syncOutputs(){ sliders.forEach(id => { $('o_'+id).textContent = fmt(id); }); }
+
+  function syncContext(){
+    const t = state.type;
+    $('ctx_geo').classList.toggle('on', t==='geodesic');
+    $('ctx_voro').classList.toggle('on', t==='voronoi');
+  }
+
+  function params(){
+    return {
+      name: $('name').value, type: state.type, diameter: +$('diameter').value,
+      freq: +$('freq').value, cells: +$('cells').value, seed: state.seed, jitter: +$('jitter').value,
+      shell: +$('shell').value, rib: +$('rib').value, letterW: +$('letterDia').value, layer: +state.layer,
+      inner: $('inner').checked, innerRatio: 0.55, nameStyle: 'framed',
+      blockInside: $('blockInside').checked, blockName: $('blockName').checked,
+      letterH: +$('letterH').value, textGap: 1.0,
+      flat: 0, voxel: VOX[state.quality] * Math.sqrt(+$('diameter').value/38),
+      maxPoints: 8e6
+    };
+  }
+
+  // segmented buttons
+  ['type','quality','layer'].forEach(group => {
+    $(group).addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      state[group] = b.dataset.v;
+      if (group==='type') { $('rib').value = b.dataset.v==='voronoi' ? 1.5 : 1.05; syncOutputs(); }
+      [...$(group).children].forEach(x => x.setAttribute('aria-pressed', x===b ? 'true':'false'));
+      syncContext(); schedule();
+    });
+  });
+  sliders.forEach(id => $(id).addEventListener('input', () => { syncOutputs(); schedule(); }));
+  ['inner','blockInside','blockName'].forEach(id => $(id).addEventListener('change', () => schedule()));
+  $('showBlockers').addEventListener('change', () => { if (window.__showBlockers) window.__showBlockers($('showBlockers').checked); });
+  $('name').addEventListener('input', schedule);
+  $('shuffle').addEventListener('click', () => { state.seed = (Math.random()*1e9)|0; schedule(0); });
+
+  // worker (falls back to main thread)
+  let worker = null;
+  try {
+    const src = $('core-src').textContent + `
+      self.onmessage = function(e){
+        try {
+          const r = self.LatticeBall.buildRibBall(e.data.p);
+          r.stats.est = self.LatticeBall.estimatePrintTime(r.mesh, { layer: e.data.p.layer });
+          const tf = [r.mesh.positions.buffer, r.mesh.indices.buffer];
+          r.blockers.forEach(b => tf.push(b.positions.buffer, b.indices.buffer));
+          self.postMessage({ id:e.data.id, ok:true, positions:r.mesh.positions, indices:r.mesh.indices, blockers:r.blockers, stats:r.stats, warnings:r.warnings }, tf);
+        } catch(err){ self.postMessage({ id:e.data.id, ok:false, error:String(err && err.message || err) }); }
+      };`;
+    worker = new Worker(URL.createObjectURL(new Blob([src], { type:'text/javascript' })));
+  } catch(e) { worker = null; }
+
+  let jobId = 0, running = false, pending = false, timer = null, current = null;
+  function schedule(delay){ clearTimeout(timer); timer = setTimeout(run, delay===undefined ? 450 : delay); }
+  function run(){
+    if (running) { pending = true; return; }
+    running = true; pending = false;
+    $('busy').classList.add('on'); $('dl').disabled = true;
+    const id = ++jobId, p = params();
+    const done = res => {
+      running = false; $('busy').classList.remove('on');
+      if (res.ok) onResult(res, p);
+      else { $('msg').textContent = 'Something went wrong: ' + res.error; }
+      if (pending) run();
+    };
+    if (worker) {
+      worker.onmessage = e => { if (e.data.id === id) done(e.data); };
+      worker.onerror = () => { worker = null; running = false; run(); };
+      worker.postMessage({ id, p });
+    } else {
+      setTimeout(() => {
+        try { const r = LB.buildRibBall(p); r.stats.est = LB.estimatePrintTime(r.mesh, { layer: p.layer }); done({ ok:true, positions:r.mesh.positions, indices:r.mesh.indices, blockers:r.blockers, stats:r.stats, warnings:r.warnings }); }
+        catch(err){ done({ ok:false, error:String(err.message||err) }); }
+      }, 30);
+    }
+  }
+
+  function onResult(res, p){
+    current = { positions: res.positions, indices: res.indices, blockers: res.blockers || [], params: p, stats: res.stats };
+    const s = res.stats;
+    const grams = s.volume/1000*1.21;
+    const mins = s.est ? Math.round(s.est.seconds/60) : null;
+    const mb = (84 + s.tris*50)/1048576;
+    $('stats').innerHTML =
+      `<span>Size <b>${s.size[0].toFixed(0)}×${s.size[1].toFixed(0)}×${s.size[2].toFixed(0)} mm</b></span>` +
+      (mins ? `<span>Print ≈ <b style="color:${mins>70?'#B9573A':'inherit'}">${mins} min</b> (est.)</span>` : '') +
+      `<span>≈ <b>${grams.toFixed(1)} g</b> TPU</span>` +
+      (s.textHeight ? `<span>Letters <b>${s.textHeight.toFixed(1)} mm</b></span>` : '') +
+      `<span>STL <b>${mb.toFixed(1)} MB</b></span>` +
+      `<span><b>${(s.tris/1000).toFixed(0)}k</b> triangles</span>`;
+    const w = res.warnings.slice();
+    if (mins && mins > 70) w.push('Estimated print time is over 70 min. Try a smaller diameter, 0.24 mm layers or lower hole density.');
+    else if (mins && mins > 62) w.push('Estimate is close to 70 min once supports and brim are added. Slice to confirm.');
+    if (!LB.cleanName(p.name)) w.push('No printable letters in the name, so the ball has no name panel.');
+    $('warn').textContent = w.join(' ');
+    $('warn').classList.toggle('on', w.length > 0);
+    $('msg').textContent = '';
+    $('dl').disabled = false;
+    if (window.__setMesh) window.__setMesh(res.positions, res.indices, p, current.blockers, $('showBlockers').checked);
+    else window.__pendingMesh = [res.positions, res.indices, p, current.blockers, $('showBlockers').checked];
+  }
+
+  // download
+  let downloadsNS;
+  if (window.claude && typeof window.claude.use === 'function') {
+    downloadsNS = window.claude.use('downloads').catch(() => null);
+  } else downloadsNS = Promise.resolve(null);
+
+  $('dl').addEventListener('click', async () => {
+    if (!current) return;
+    const btn = $('dl'); btn.disabled = true;
+    $('msg').textContent = 'Packing files…';
+    try {
+      const nm = LB.cleanName(current.params.name).replace(/ +/g,'-') || 'ball';
+      const base = 'lattice-ball-' + current.params.type + '-' + nm.toLowerCase();
+      const mesh = { positions: current.positions, indices: current.indices };
+      const stl = LB.toSTL(mesh, nm);
+      const settings = { layer_height: String(current.params.layer), wall_loops: '3', wall_generator: 'arachne', sparse_infill_density: '15%', brim_type: 'outer_only', brim_width: '5', enable_support: '1', support_type: 'tree(auto)', support_style: 'tree_slim' };
+      const tmf = new Uint8Array(await (await LB.make3MF(mesh, base, current.blockers, [90, 90], settings)).arrayBuffer());
+      const readme = 'Forgecraft Lattice Ball\n\nName: ' + nm + '\nStyle: ' + current.params.type + '\nDiameter: ' + current.params.diameter + ' mm\n\n' +
+        'Open the .3mf in Bambu Studio and slice with a TPU profile.\n' +
+        (current.blockers.length ? 'The 3MF includes support blockers: ' + current.blockers.map(b => b.name.replace('Support blocker - ', '')).join(', ') + '. They show up as parts under the ball in the object list.\n' : 'No support blockers were added.\n') +
+        'Saved on the object in the 3MF: ' + current.params.layer + ' mm layers, 3 walls (Arachne), 15% infill, 5 mm brim, Tree Slim auto supports.\n' +
+        'Estimated print time (Generic TPU, A1 mini): about ' + Math.round(current.stats.est.seconds/60) + ' min before supports and brim. Confirm in Bambu Studio.\n' +
+        'The .stl is the ball only (no blockers, no settings).\n';
+      const zip = await LB.makeZip([{ name: base + '.stl', data: stl }, { name: base + '.3mf', data: tmf }, { name: 'README.txt', data: readme }]);
+      const dl = await downloadsNS;
+      if (dl) {
+        try { await dl.save({ filename: base + '.zip', data: zip }); $('msg').textContent = 'Saved ' + base + '.zip'; }
+        catch (err) {
+          const c = err && err.code;
+          $('msg').textContent = c === 'declined' ? 'Download cancelled.' : c === 'rate_limited' ? 'A save prompt is already open. Try again in a moment.' : 'Download is not available in this view (' + (c || 'unknown') + ').';
+        }
+      } else {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(zip); a.download = base + '.zip';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+        $('msg').textContent = 'If nothing downloaded, open this page in claude.ai to save the file.';
+      }
+    } catch (err) { $('msg').textContent = 'Could not build the files: ' + (err.message || err); }
+    btn.disabled = false;
+  });
+
+  syncOutputs(); syncContext(); schedule(0);
+})();
+</script>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const canvas = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 1, 2000);
+camera.up.set(0, 0, 1);
+camera.position.set(0, -132, 38);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.enablePan = false;
+controls.autoRotate = true; controls.autoRotateSpeed = 1.2;
+controls.minDistance = 60; controls.maxDistance = 400;
+controls.addEventListener('start', () => { controls.autoRotate = false; });
+
+scene.add(new THREE.HemisphereLight(0xfff6e6, 0x8fa898, 1.6));
+const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(70, -90, 140); scene.add(key);
+const rim = new THREE.DirectionalLight(0xffe2b0, 0.9); rim.position.set(-120, 80, 40); scene.add(rim);
+
+const material = new THREE.MeshStandardMaterial({ color: 0x2f6f55, roughness: 0.6, metalness: 0.0 });
+let mesh = null;
+const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 64), new THREE.MeshBasicMaterial({ color: 0x1c382a, transparent: true, opacity: 0.10 }));
+scene.add(shadow);
+
+const blockMat = new THREE.MeshBasicMaterial({ color: 0xD4A846, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
+let blockMeshes = [];
+function showBlockers(on) { blockMeshes.forEach(b => b.visible = on); }
+window.__showBlockers = showBlockers;
+function setMesh(positions, indices, p, blockers, showB) {
+  blockMeshes.forEach(b => { scene.remove(b); b.geometry.dispose(); });
+  blockMeshes = (blockers || []).map(bl => {
+    const bg = new THREE.BufferGeometry();
+    bg.setAttribute('position', new THREE.BufferAttribute(bl.positions, 3));
+    bg.setIndex(new THREE.BufferAttribute(bl.indices, 1));
+    const bm = new THREE.Mesh(bg, blockMat); bm.visible = !!showB; bm.renderOrder = 2; scene.add(bm); return bm;
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  g.setIndex(new THREE.BufferAttribute(indices, 1));
+  g.computeVertexNormals();
+  if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); }
+  mesh = new THREE.Mesh(g, material);
+  scene.add(mesh);
+  const R = p.diameter / 2;
+  shadow.scale.setScalar(R * 0.75);
+  shadow.position.set(0, 0, -R - 0.3);
+  const dist = Math.max(100, p.diameter * 2.7);
+  if (!setMesh.framed || setMesh.lastD !== p.diameter) {
+    const dir = camera.position.clone().normalize();
+    camera.position.copy(dir.multiplyScalar(dist));
+    setMesh.framed = true; setMesh.lastD = p.diameter;
+  }
+}
+window.__setMesh = setMesh;
+if (window.__pendingMesh) { setMesh(...window.__pendingMesh); window.__pendingMesh = null; }
+
+document.getElementById('swatches').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  material.color.set(b.dataset.c);
+  [...e.currentTarget.children].forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+});
+
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== Math.round(w * renderer.getPixelRatio()) || canvas.height !== Math.round(h * renderer.getPixelRatio())) {
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+}
+(function loop() { resize(); controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop); })();
+</script>
+<script>
+  // If the 3D library could not load, say so (the generator and download still work).
+  setTimeout(() => { if (!window.__setMesh) { const s = document.getElementById('stats'); if (s && !s.dataset.warned) { s.dataset.warned = 1; s.insertAdjacentHTML('afterbegin', '<span style="color:#B9573A">3D preview could not load here — files still download.</span> '); } } }, 8000);
+</script>
+</body>
+</html>

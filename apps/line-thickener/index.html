@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Line Thickener</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: slim brand bar, controls rail on the left, the print preview fills the rest. Single (brand) theme by choice. */
+:root {
+  --forest: #1A3A2A;
+  --forest-2: #24503a;
+  --cream: #F5F0E8;
+  --card: #FFFBF5;
+  --gold: #D4A843;
+  --ink: #1C1C1C;
+  --muted: #6f665e;
+  --line: rgba(26, 58, 42, 0.14);
+  --bad: #D23F31;
+  --good: #2E7D4F;
+  --mask: #2563EB;
+  --f-display: "Fraunces", Georgia, serif;
+  --f-body: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num: "Space Grotesk", ui-monospace, "SF Mono", Menlo, monospace;
+  --r: 0.5rem;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--cream); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45;
+  display: flex; flex-direction: column;
+}
+header {
+  background: var(--forest); color: var(--card); display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px; gap: 16px; flex: none;
+}
+header h1 { font-family: var(--f-display); font-weight: 700; font-size: 20px; margin: 0; letter-spacing: 0.2px; text-wrap: balance; }
+header h1 small { font-family: var(--f-body); font-weight: 500; font-size: 13px; opacity: 0.75; margin-left: 8px; }
+.wordmark { font-family: var(--f-display); font-weight: 700; font-size: 16px; }
+.wordmark span { color: var(--gold); }
+
+.app { flex: 1; min-height: 0; display: grid; grid-template-columns: 340px 1fr; }
+aside {
+  border-right: 1px solid var(--line); overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px;
+  background: var(--cream);
+}
+.card { background: var(--card); border-radius: var(--r); padding: 14px; box-shadow: 0 1px 2px rgba(26,58,42,.08), 0 2px 10px rgba(26,58,42,.05); display: flex; flex-direction: column; gap: 10px; }
+.card h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--forest); display: flex; align-items: center; gap: 8px; }
+.card h2 .n { font-family: var(--f-num); background: var(--forest); color: var(--card); width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 11px; letter-spacing: 0; }
+
+.drop {
+  border: 2px dashed rgba(26,58,42,.28); border-radius: var(--r); padding: 16px 12px; text-align: center; cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px; align-items: center; transition: background .15s, border-color .15s;
+}
+.drop:hover, .drop.over { background: rgba(212,168,67,.12); border-color: var(--gold); }
+.drop strong { font-size: 15px; }
+.drop .sub { color: var(--muted); font-size: 12.5px; }
+.filename { font-size: 12.5px; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.filename b { color: var(--ink); font-weight: 600; word-break: break-all; }
+.tag { font-family: var(--f-num); font-size: 11px; padding: 2px 7px; border-radius: 999px; background: rgba(212,168,67,.22); color: #6b5212; }
+
+.field { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; }
+.field label { font-weight: 600; }
+.field .hint { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; margin-top: -4px; }
+.num { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: var(--r); background: #fff; overflow: hidden; }
+.num input { width: 70px; border: 0; padding: 7px 8px; font-family: var(--f-num); font-size: 15px; text-align: right; background: transparent; color: var(--ink); font-variant-numeric: tabular-nums; }
+.num span { padding: 0 9px 0 2px; color: var(--muted); font-family: var(--f-num); }
+.num input:focus { outline: none; }
+.num:focus-within { border-color: var(--forest); box-shadow: 0 0 0 3px rgba(26,58,42,.15); }
+input[type=range] { width: 100%; accent-color: var(--forest); }
+.rangeRow { display: grid; grid-template-columns: 1fr 64px; gap: 10px; align-items: center; }
+.rangeRow output { font-family: var(--f-num); text-align: right; font-variant-numeric: tabular-nums; }
+
+.seg { display: grid; grid-template-columns: 1fr 1fr; background: rgba(26,58,42,.08); padding: 3px; border-radius: calc(var(--r) + 3px); gap: 3px; }
+.seg button { border: 0; background: transparent; padding: 8px 6px; border-radius: var(--r); font: 600 13px var(--f-body); color: var(--forest); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--forest); color: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.seg button:focus-visible, .btn:focus-visible, .tab:focus-visible, .drop:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+.paintTools { display: none; flex-direction: column; gap: 10px; padding-top: 2px; }
+.paintTools.on { display: flex; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  border: 1px solid var(--line); background: #fff; color: var(--forest); padding: 8px 12px; border-radius: var(--r);
+  font: 600 13px var(--f-body); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; justify-content: center;
+}
+.btn:hover { border-color: var(--forest); }
+.btn[aria-pressed="true"] { background: var(--forest); color: var(--card); border-color: var(--forest); }
+.btn.primary { background: var(--gold); border-color: var(--gold); color: var(--forest); font-size: 15px; padding: 12px 14px; }
+.btn.primary:hover { background: #c99a32; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.check { display: flex; gap: 8px; align-items: center; font-weight: 500; }
+.check input { accent-color: var(--forest); width: 16px; height: 16px; }
+.note { font-size: 12.5px; color: var(--muted); margin: 0; }
+.note b { color: var(--ink); font-family: var(--f-num); font-weight: 600; }
+.status { font-size: 12.5px; min-height: 1.2em; margin: 0; color: var(--good); }
+.status.err { color: var(--bad); }
+details summary { cursor: pointer; font-weight: 600; color: var(--forest); }
+details[open] summary { margin-bottom: 10px; }
+details .inner { display: flex; flex-direction: column; gap: 12px; }
+
+main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.tabs { display: flex; gap: 4px; background: rgba(26,58,42,.08); padding: 3px; border-radius: calc(var(--r) + 3px); }
+.tab { border: 0; background: transparent; padding: 7px 14px; border-radius: var(--r); font: 600 13px var(--f-body); color: var(--forest); cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--card); box-shadow: 0 1px 3px rgba(26,58,42,.18); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+.zoom { display: flex; gap: 4px; }
+.zoom .btn { padding: 6px 10px; font-family: var(--f-num); }
+.chips { display: flex; gap: 8px; padding: 10px 16px 0; flex-wrap: wrap; }
+.chip { font-family: var(--f-num); font-size: 12.5px; padding: 4px 10px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.chip.bad { background: rgba(210,63,49,.1); border-color: rgba(210,63,49,.35); color: #9c2a1f; }
+.chip.good { background: rgba(46,125,79,.1); border-color: rgba(46,125,79,.35); color: #1f5c39; }
+.chip.warn { background: rgba(212,168,67,.18); border-color: rgba(212,168,67,.5); color: #6b5212; }
+
+.stage { flex: 1; min-height: 0; overflow: auto; padding: 16px; position: relative; display: grid; place-items: center; }
+.stage.zoomed { place-items: start; }
+.paper { position: relative; background: #fff; box-shadow: 0 2px 6px rgba(26,58,42,.12), 0 12px 32px rgba(26,58,42,.10); border-radius: 4px; touch-action: none; }
+.paper canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: auto; }
+#maskCv { opacity: 0.32; display: none; }
+.paper.painting #maskCv { display: block; cursor: none; }
+.ring { position: absolute; border: 2px solid var(--mask); border-radius: 50%; pointer-events: none; display: none; transform: translate(-50%, -50%); box-shadow: 0 0 0 1px #fff; }
+.ring.erase { border-style: dashed; border-color: var(--bad); }
+.busy { position: absolute; inset: 0; display: none; place-items: center; background: rgba(245,240,232,.55); z-index: 5; }
+.busy.on { display: grid; }
+.busy span { background: var(--forest); color: var(--card); padding: 8px 14px; border-radius: 999px; font-weight: 600; }
+.empty { color: var(--muted); }
+
+@media (max-width: 820px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: 1fr; }
+  aside { border-right: 0; border-bottom: 1px solid var(--line); overflow: visible; }
+  main { min-height: 75vh; }
+  .stage { min-height: 60vh; }
+  header h1 small { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Line Thickener <small>picsvg → Tinkercad, printable lines only</small></h1>
+  <div class="wordmark">Forge<span>craft</span></div>
+</header>
+
+<div class="app">
+<aside>
+  <section class="card">
+    <h2><span class="n">1</span> Load the design</h2>
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose an SVG or image file">
+      <strong>Drop the picsvg SVG here</strong>
+      <span class="sub">or click to choose a file. PNG/JPG screenshots work too, and so does Ctrl+V / ⌘V paste.</span>
+    </div>
+    <input type="file" id="file" accept=".svg,image/svg+xml,image/png,image/jpeg,image/webp,image/gif" hidden>
+    <div class="filename" id="fname"></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">2</span> Use &amp; size</h2>
+    <div class="seg" role="group" aria-label="How the SVG will be used">
+      <button id="useRaise" aria-pressed="true">Solid shape</button>
+      <button id="useCut" aria-pressed="false">Cutting tool (hole)</button>
+    </div>
+    <p class="note" id="useNote">Checks the black lines themselves.</p>
+    <div id="plateBox" hidden>
+      <label class="check"><input type="checkbox" id="plateOn" checked> Cutting into a circle</label>
+      <div class="field" id="plateField" style="margin-top:8px">
+        <label for="plateMm">Circle diameter</label>
+        <span class="num"><input id="plateMm" type="number" min="5" max="300" step="0.5" value="33" inputmode="decimal"><span>mm</span></span>
+        <span class="hint">Centred on the design. The rim between the cutter and the circle edge is kept at least as wide as the thinnest printable line.</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="widthMm">Final width in Tinkercad</label>
+      <span class="num"><input id="widthMm" type="number" min="5" max="300" step="1" value="30" inputmode="decimal"><span>mm</span></span>
+      <span class="hint" id="heightHint">Width of the black artwork, not the canvas.</span>
+    </div>
+    <div class="field">
+      <label for="minMm">Thinnest printable line</label>
+      <span class="num"><input id="minMm" type="number" min="0.2" max="3" step="0.1" value="0.8" inputmode="decimal"><span>mm</span></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">3</span> What to fix</h2>
+    <div class="seg" role="group" aria-label="Fix mode">
+      <button id="modeAuto" aria-pressed="true">All thin lines</button>
+      <button id="modePaint" aria-pressed="false">Only where I paint</button>
+    </div>
+    <div>
+      <label for="taper" style="font-weight:600">Taper</label>
+      <div class="rangeRow"><input id="taper" type="range" min="0" max="100" step="5" value="50"><output id="taperOut" for="taper">50%</output></div>
+      <p class="note">0% makes every thin line exactly the minimum width. Higher keeps lines that narrow towards their tips looking tapered, with thin lines a little bolder.</p>
+    </div>
+    <div class="paintTools" id="paintTools">
+      <p class="note">Paint over the red areas you want fixed. Unpainted red areas stay as they are.</p>
+      <div class="row">
+        <button class="btn" id="toolBrush" aria-pressed="true">Brush</button>
+        <button class="btn" id="toolErase" aria-pressed="false">Eraser</button>
+        <button class="btn" id="undo">Undo</button>
+        <button class="btn" id="clearMask">Clear</button>
+      </div>
+      <div>
+        <label for="brush" style="font-weight:600">Brush size</label>
+        <div class="rangeRow"><input id="brush" type="range" min="1" max="15" step="0.5" value="4"><output id="brushOut" for="brush">4 mm</output></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>Clean-up options</summary>
+      <div class="inner">
+        <div>
+          <label for="speck" style="font-weight:600">Remove specks &amp; pinholes under</label>
+          <div class="rangeRow"><input id="speck" type="range" min="0" max="3" step="0.1" value="0.5"><output id="speckOut" for="speck">0.5 mm</output></div>
+        </div>
+        <div>
+          <label for="thr" style="font-weight:600">Black / white cutoff</label>
+          <div class="rangeRow"><input id="thr" type="range" min="20" max="235" step="1" value="128"><output id="thrOut" for="thr">128</output></div>
+          <p class="note">Mostly for screenshots. Move right to catch light-grey lines.</p>
+        </div>
+        <label class="check"><input type="checkbox" id="invert"> Image is white on a black background</label>
+      </div>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">4</span> Export</h2>
+    <div class="seg" id="exportSeg" role="group" aria-label="What to export" hidden>
+      <button id="expCutter" aria-pressed="true">Cutter (Hole)</button>
+      <button id="expDisc" aria-pressed="false">Finished disc</button>
+    </div>
+    <button class="btn primary" id="download">Download fixed SVG</button>
+    <button class="btn" id="copy">Copy SVG code</button>
+    <p class="status" id="status" role="status"></p>
+    <p class="note" id="tcNote">In Tinkercad: Import the SVG, then set the width to <b id="tcW">–</b> mm.</p>
+  </section>
+</aside>
+
+<main>
+  <div class="toolbar">
+    <div class="tabs" role="tablist" aria-label="Preview">
+      <button class="tab" role="tab" id="vCheck" aria-selected="true">Problems</button>
+      <button class="tab" role="tab" id="vFixed" aria-selected="false">Fixed</button>
+      <button class="tab" role="tab" id="vFinal" aria-selected="false">Final</button>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="zoom">
+      <button class="btn" data-z="1" aria-pressed="true">Fit</button>
+      <button class="btn" data-z="2" aria-pressed="false">2×</button>
+      <button class="btn" data-z="4" aria-pressed="false">4×</button>
+    </div>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="stage" id="stage">
+    <div class="paper" id="paper">
+      <canvas id="viewCv"></canvas>
+      <canvas id="maskCv"></canvas>
+      <div class="ring" id="ring"></div>
+    </div>
+    <div class="busy" id="busy"><span>Working…</span></div>
+  </div>
+</main>
+</div>
+
+<script>
+// ===== CORE START =====
+const INF = 1e20;
+
+function edt1d(f, n, d, v, z) {
+  let k = 0; v[0] = 0; z[0] = -INF; z[1] = INF;
+  for (let q = 1; q < n; q++) {
+    let s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+    while (s <= z[k]) { k--; s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]); }
+    k++; v[k] = q; z[k] = s; z[k + 1] = INF;
+  }
+  k = 0;
+  for (let q = 0; q < n; q++) {
+    while (z[k + 1] < q) k++;
+    const dq = q - v[k];
+    d[q] = dq * dq + f[v[k]];
+  }
+}
+
+// Squared Euclidean distance from every pixel to the nearest pixel where feat[i] is set.
+function edt(feat, w, h) {
+  const N = w * h, out = new Float32Array(N);
+  for (let i = 0; i < N; i++) out[i] = feat[i] ? 0 : INF;
+  return gedt(out, w, h);
+}
+
+// Generalised distance transform, in place: out[q] = min_p |q-p|^2 + init[p].
+// With init[p] = -R(p)^2 at centreline pixels, out[q] <= 0 exactly where q lies
+// inside at least one of the variable-size discs.
+function gedt(out, w, h) {
+  const n = Math.max(w, h);
+  const f = new Float64Array(n), d = new Float64Array(n), v = new Int32Array(n), z = new Float64Array(n + 1);
+  for (let x = 0; x < w; x++) {
+    for (let y = 0; y < h; y++) f[y] = out[y * w + x];
+    edt1d(f, h, d, v, z);
+    for (let y = 0; y < h; y++) out[y * w + x] = d[y];
+  }
+  for (let y = 0; y < h; y++) {
+    const o = y * w;
+    for (let x = 0; x < w; x++) f[x] = out[o + x];
+    edt1d(f, w, d, v, z);
+    for (let x = 0; x < w; x++) out[o + x] = d[x];
+  }
+  return out;
+}
+
+// Remove connected components of value `val` smaller than minArea (flip them).
+// White components touching the border are the background and are never filled.
+function removeSmall(B, w, h, minArea, val, conn8) {
+  if (minArea <= 1) return 0;
+  const N = w * h, seen = new Uint8Array(N), list = new Int32Array(N);
+  let removed = 0;
+  for (let s = 0; s < N; s++) {
+    if (seen[s] || B[s] !== val) continue;
+    let head = 0, tail = 0, border = false;
+    list[tail++] = s; seen[s] = 1;
+    while (head < tail) {
+      const p = list[head++], x = p % w, y = (p - x) / w;
+      if (x === 0 || y === 0 || x === w - 1 || y === h - 1) border = true;
+      for (let dy = -1; dy <= 1; dy++) {
+        const ny = y + dy; if (ny < 0 || ny >= h) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          if (!conn8 && dx && dy) continue;
+          const nx = x + dx; if (nx < 0 || nx >= w) continue;
+          const q = ny * w + nx;
+          if (!seen[q] && B[q] === val) { seen[q] = 1; list[tail++] = q; }
+        }
+      }
+    }
+    if (tail < minArea && !(val === 0 && border)) {
+      for (let i = 0; i < tail; i++) B[list[i]] = 1 - val;
+      removed++;
+    }
+  }
+  return removed;
+}
+
+function clearFrame(B, w, h) {
+  for (let x = 0; x < w; x++) { B[x] = 0; B[(h - 1) * w + x] = 0; }
+  for (let y = 0; y < h; y++) { B[y * w] = 0; B[y * w + w - 1] = 0; }
+}
+
+// Find the parts of B narrower than 2*rPx and the centre line ("ridge") of each.
+// Thin = what a morphological opening with a disc of radius rPx removes.
+// Small wedge-shaped leftovers at sharp-ish corners of thick shapes are ignored.
+function analyse(B, w, h, rPx) {
+  const N = w * h;
+  const bg = new Uint8Array(N);
+  for (let i = 0; i < N; i++) bg[i] = B[i] ? 0 : 1;
+  const dFg = edt(bg, w, h);
+  const coreT = (rPx + 0.5) * (rPx + 0.5);
+  const core = new Uint8Array(N);
+  let anyCore = false;
+  for (let i = 0; i < N; i++) if (B[i] && dFg[i] >= coreT) { core[i] = 1; anyCore = true; }
+  const opened = new Uint8Array(N);
+  let dC = null;
+  if (anyCore) {
+    dC = edt(core, w, h);
+    const oT = (rPx + 1) * (rPx + 1);
+    for (let i = 0; i < N; i++) if (B[i] && dC[i] <= oT) opened[i] = 1;
+  }
+  const T = new Uint8Array(N);
+  for (let i = 0; i < N; i++) if (B[i] && !opened[i]) T[i] = 1;
+
+  const label = new Uint8Array(N), keptT = new Uint8Array(N), ridge = new Uint8Array(N);
+  const comp = new Int32Array(N), list = new Int32Array(N);
+  const offs = [1, w, w + 1, w - 1];
+  let kept = 0;
+  for (let s = 0; s < N; s++) {
+    if (!T[s] || label[s]) continue;
+    let head = 0, tail = 0, touches = false, ext = 0;
+    list[tail++] = s; label[s] = 1;
+    while (head < tail) {
+      const p = list[head++], x = p % w, y = (p - x) / w;
+      if (dC) { const e = Math.sqrt(dC[p]) - (rPx + 1); if (e > ext) ext = e; }
+      for (let dy = -1; dy <= 1; dy++) {
+        const ny = y + dy; if (ny < 0 || ny >= h) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const nx = x + dx; if (nx < 0 || nx >= w) continue;
+          const q = ny * w + nx;
+          if (opened[q]) touches = true;
+          else if (T[q] && !label[q]) { label[q] = 1; list[tail++] = q; }
+        }
+      }
+    }
+    if (touches && ext < rPx) continue; // corner wedge of a thick shape, not a thin line
+    kept++;
+    for (let i = 0; i < tail; i++) {
+      const p = list[i];
+      keptT[p] = 1; comp[p] = kept;
+      const px = p % w, py = (p - px) / w;
+      if (px === 0 || py === 0 || px === w - 1 || py === h - 1) continue;
+      const d = dFg[p];
+      for (let k = 0; k < 4; k++) {
+        const a = dFg[p - offs[k]], b = dFg[p + offs[k]];
+        if (d >= a && d >= b && (d > a || d > b)) { ridge[p] = 1; break; }
+      }
+    }
+  }
+  return { keptT, ridge, comp, kept, dFg };
+}
+
+// Zhang–Suen thinning of the pixels in `region`; everything else in S is a fixed anchor.
+function thinRegion(S, region, w, h) {
+  let cand = [];
+  for (let i = 0; i < region.length; i++) if (region[i]) {
+    const x = i % w, y = (i - x) / w;
+    if (x > 0 && y > 0 && x < w - 1 && y < h - 1) cand.push(i);
+  }
+  const del = [];
+  for (let iter = 0; iter < 300; iter++) {
+    let changed = false;
+    for (let step = 0; step < 2; step++) {
+      del.length = 0;
+      for (let c = 0; c < cand.length; c++) {
+        const p = cand[c]; if (!S[p]) continue;
+        const p2 = S[p - w], p3 = S[p - w + 1], p4 = S[p + 1], p5 = S[p + w + 1],
+              p6 = S[p + w], p7 = S[p + w - 1], p8 = S[p - 1], p9 = S[p - w - 1];
+        const b = p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9;
+        if (b < 2 || b > 6) continue;
+        const a = (!p2 & p3) + (!p3 & p4) + (!p4 & p5) + (!p5 & p6) + (!p6 & p7) + (!p7 & p8) + (!p8 & p9) + (!p9 & p2);
+        if (a !== 1) continue;
+        if (step === 0) { if (p2 & p4 & p6) continue; if (p4 & p6 & p8) continue; }
+        else { if (p2 & p4 & p8) continue; if (p2 & p6 & p8) continue; }
+        del.push(p);
+      }
+      for (let i = 0; i < del.length; i++) S[del[i]] = 0;
+      if (del.length) changed = true;
+    }
+    if (!changed) break;
+    cand = cand.filter(p => S[p]);
+  }
+}
+
+function nbrCount(S, p, w) {
+  return S[p - w - 1] + S[p - w] + S[p - w + 1] + S[p - 1] + S[p + 1] + S[p + w - 1] + S[p + w] + S[p + w + 1];
+}
+
+// Centreline of the region to thicken, cleaned of the little spurs that boundary
+// wobble creates (those spurs are what made lumps), with a target radius per pixel.
+// Radius = max(own half-width, minimum + taper * own half-width): taper 0 makes every
+// thin line exactly the minimum; higher taper keeps narrowing lines visibly tapered.
+function buildSkeleton(base, region, comp, nComp, dFg, w, h, rPx, taper) {
+  const N = w * h, S = base.slice();
+  thinRegion(S, region, w, h);
+  let sk = [];
+  for (let i = 0; i < N; i++) if (region[i] && S[i]) sk.push(i);
+  const A = new Uint8Array(N);
+  for (const p of sk) A[p] = 1;
+  // prune spurs: peel free ends k times, then regrow the surviving branch ends
+  const k = Math.max(3, Math.round(rPx * 1.6));
+  for (let it = 0; it < k; it++) {
+    const ends = [];
+    for (const p of sk) if (S[p] && nbrCount(S, p, w) <= 1) ends.push(p);
+    if (!ends.length) break;
+    for (const p of ends) S[p] = 0;
+  }
+  let front = [];
+  for (const p of sk) if (S[p] && nbrCount(S, p, w) === 1) front.push(p);
+  for (let it = 0; it < k && front.length; it++) {
+    const next = [];
+    for (const p of front) for (const o of [-w - 1, -w, -w + 1, -1, 1, w - 1, w, w + 1]) {
+      const q = p + o; if (A[q] && !S[q]) { S[q] = 1; next.push(q); }
+    }
+    front = next;
+  }
+  sk = sk.filter(p => S[p]);
+  // thin areas whose centreline vanished entirely (dots, tiny stubs): use their centre
+  const has = new Uint8Array(nComp + 1), best = new Int32Array(nComp + 1).fill(-1);
+  for (const p of sk) has[comp[p]] = 1;
+  for (let i = 0; i < N; i++) if (region[i]) {
+    const c = comp[i]; if (has[c]) continue;
+    if (best[c] < 0 || dFg[i] > dFg[best[c]]) best[c] = i;
+  }
+  for (let c = 1; c <= nComp; c++) if (!has[c] && best[c] >= 0) { sk.push(best[c]); S[best[c]] = 1; }
+  // smoothed half-width along the centreline, so widths flow instead of jittering
+  const idx = new Int32Array(sk), n = idx.length;
+  const pos = new Int32Array(N).fill(-1);
+  for (let j = 0; j < n; j++) pos[idx[j]] = j;
+  let hw = new Float32Array(n);
+  for (let j = 0; j < n; j++) hw[j] = Math.max(0.5, Math.sqrt(dFg[idx[j]]) - 0.5);
+  const offs = [-w - 1, -w, -w + 1, -1, 1, w - 1, w, w + 1];
+  for (let it = 0; it < 4; it++) {
+    const nx = new Float32Array(n);
+    for (let j = 0; j < n; j++) {
+      let s = hw[j], c = 1;
+      for (const o of offs) { const q = pos[idx[j] + o]; if (q >= 0) { s += hw[q]; c++; } }
+      nx[j] = s / c;
+    }
+    hw = nx;
+  }
+  const R = new Float32Array(n);
+  for (let j = 0; j < n; j++) R[j] = Math.max(hw[j], rPx + taper * hw[j]);
+  return { idx, R };
+}
+
+// Thicken: each selected centreline pixel becomes a disc of its own radius, unioned with the original.
+function finalize(B, an, skel, w, h, rPx, maskSel) {
+  const N = w * h, init = new Float32Array(N).fill(INF);
+  let any = false;
+  for (let j = 0; j < skel.idx.length; j++) {
+    const p = skel.idx[j];
+    if (maskSel && !maskSel[p]) continue;
+    init[p] = -skel.R[j] * skel.R[j]; any = true;
+  }
+  const F = B.slice(), added = new Uint8Array(N), unfixed = new Uint8Array(N);
+  const bad = new Uint8Array(an.kept + 1);
+  let stillThin = 0;
+  if (any) {
+    const d = gedt(init, w, h), tol = 3 * rPx + 2.25;
+    for (let i = 0; i < N; i++) {
+      if (d[i] <= 0 && !B[i]) { F[i] = 1; added[i] = 1; }
+      if (an.keptT[i] && d[i] > tol) { unfixed[i] = 1; const c = an.comp[i]; if (!bad[c]) { bad[c] = 1; stillThin++; } }
+    }
+  } else {
+    for (let i = 0; i < N; i++) if (an.keptT[i]) { unfixed[i] = 1; const c = an.comp[i]; if (!bad[c]) { bad[c] = 1; stillThin++; } }
+  }
+  return { F, added, unfixed, stillThin };
+}
+
+function countPieces(F, w, h, minArea) {
+  const N = w * h, seen = new Uint8Array(N), list = new Int32Array(N);
+  let n = 0;
+  for (let s = 0; s < N; s++) {
+    if (!F[s] || seen[s]) continue;
+    let head = 0, tail = 0; list[tail++] = s; seen[s] = 1;
+    while (head < tail) {
+      const p = list[head++], x = p % w, y = (p - x) / w;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const q = ny * w + nx; if (F[q] && !seen[q]) { seen[q] = 1; list[tail++] = q; }
+      }
+    }
+    if (tail >= minArea) n++;
+  }
+  return n;
+}
+
+function bboxOf(F, w, h) {
+  let x0 = w, x1 = -1, y0 = h, y1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (F[y * w + x]) {
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  return x1 < 0 ? null : [x0, y0, x1, y1];
+}
+
+// Douglas–Peucker on a closed ring; returns kept indices in order.
+function simplifyClosed(xs, ys, eps) {
+  const n = xs.length;
+  if (n < 5) return [...Array(n).keys()];
+  let k = 0, best = -1;
+  for (let i = 1; i < n; i++) { const d = (xs[i] - xs[0]) ** 2 + (ys[i] - ys[0]) ** 2; if (d > best) { best = d; k = i; } }
+  const keep = new Uint8Array(n); keep[0] = 1; keep[k] = 1;
+  const e2 = eps * eps, stack = [0, k, k, n];
+  while (stack.length) {
+    const b = stack.pop(), a = stack.pop();
+    if (b - a < 2) continue;
+    const ax = xs[a], ay = ys[a], bx = xs[b % n], by = ys[b % n];
+    const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+    let mi = -1, md = e2;
+    for (let i = a + 1; i < b; i++) {
+      let d;
+      if (L2 === 0) d = (xs[i] - ax) ** 2 + (ys[i] - ay) ** 2;
+      else { const c = dx * (ys[i] - ay) - dy * (xs[i] - ax); d = c * c / L2; }
+      if (d > md) { md = d; mi = i; }
+    }
+    if (mi >= 0) { keep[mi] = 1; stack.push(a, mi, mi, b); }
+  }
+  const out = [];
+  for (let i = 0; i < n; i++) if (keep[i]) out.push(i);
+  return out;
+}
+
+// Trace pixel boundaries into closed rings. Outer rings run clockwise, holes anticlockwise,
+// so holes cut out under both nonzero and even-odd fill. Diagonal-only contacts stay separate.
+function traceRings(F, w, h, eps) {
+  const W1 = w + 1, nV = W1 * (h + 1);
+  const oa = new Int32Array(nV).fill(-1), ob = new Int32Array(nV).fill(-1);
+  const add = (a, b) => { if (oa[a] < 0) oa[a] = b; else ob[a] = b; };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x; if (!F[i]) continue;
+    const v = y * W1 + x;
+    if (y === 0 || !F[i - w]) add(v, v + 1);
+    if (x === w - 1 || !F[i + 1]) add(v + 1, v + 1 + W1);
+    if (y === h - 1 || !F[i + w]) add(v + 1 + W1, v + W1);
+    if (x === 0 || !F[i - 1]) add(v + W1, v);
+  }
+  const rings = [];
+  for (let s = 0; s < nV; s++) {
+    if (oa[s] < 0 || ob[s] >= 0) continue;
+    const vx = [], vy = [];
+    let cur = s, pdx = 0, pdy = 0, guard = 0;
+    do {
+      let nxt;
+      const cx = cur % W1, cy = (cur - cx) / W1;
+      if (ob[cur] >= 0) {
+        const a = oa[cur], ax = a % W1, ay = (a - ax) / W1;
+        if (ax - cx === -pdy && ay - cy === pdx) { nxt = a; oa[cur] = ob[cur]; ob[cur] = -1; }
+        else { nxt = ob[cur]; ob[cur] = -1; }
+      } else { nxt = oa[cur]; oa[cur] = -1; }
+      vx.push(cx); vy.push(cy);
+      const nx = nxt % W1, ny = (nxt - nx) / W1;
+      pdx = nx - cx; pdy = ny - cy;
+      cur = nxt;
+    } while (cur !== s && ++guard < 5e7);
+    const n = vx.length, mx = new Float64Array(n), my = new Float64Array(n);
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n; mx[i] = (vx[i] + vx[j]) / 2; my[i] = (vy[i] + vy[j]) / 2; }
+    if (n > 8) { // light smoothing to remove pixel stair-steps (moves edges well under 0.1 mm)
+      const tx = new Float64Array(n), ty = new Float64Array(n);
+      for (let it = 0; it < 3; it++) {
+        for (let i = 0; i < n; i++) {
+          const a = (i + n - 1) % n, b = (i + 1) % n;
+          tx[i] = 0.25 * mx[a] + 0.5 * mx[i] + 0.25 * mx[b];
+          ty[i] = 0.25 * my[a] + 0.5 * my[i] + 0.25 * my[b];
+        }
+        mx.set(tx); my.set(ty);
+      }
+    }
+    const idx = simplifyClosed(mx, my, eps);
+    if (idx.length >= 3) rings.push(idx.map(i => [mx[i], my[i]]));
+  }
+  return rings;
+}
+
+function buildSvg(F, w, h, pxPerMm) {
+  const rings = traceRings(F, w, h, 0.6);
+  const k = 1 / pxPerMm, f = v => (+(v * k).toFixed(3)).toString();
+  let d = '';
+  for (const r of rings) {
+    d += 'M' + f(r[0][0]) + ' ' + f(r[0][1]);
+    for (let i = 1; i < r.length; i++) d += 'L' + f(r[i][0]) + ' ' + f(r[i][1]);
+    d += 'Z';
+  }
+  const Wmm = f(w), Hmm = f(h);
+  return { svg: `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${Wmm}mm" height="${Hmm}mm" viewBox="0 0 ${Wmm} ${Hmm}">\n<path fill="#000000" d="${d}"/>\n</svg>\n`, rings: rings.length };
+}
+// ===== CORE END =====
+
+// ---------- App ----------
+const $ = id => document.getElementById(id);
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const MAX_PX = 6e6;
+
+const EXAMPLE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140">
+<rect x="6" y="6" width="188" height="128" rx="14" fill="none" stroke="#000" stroke-width="7"/>
+<polygon points="62,22 71,46 96,46 76,61 84,86 62,71 40,86 48,61 28,46 53,46" fill="#000"/>
+<g fill="none" stroke="#000" stroke-linecap="round">
+<path d="M112 34 C 140 14, 176 44, 160 62 S 122 76, 140 88" stroke-width="2"/>
+<line x1="22" y1="100" x2="76" y2="96" stroke-width="1.1"/>
+<line x1="22" y1="108" x2="76" y2="108" stroke-width="1.1"/>
+<line x1="22" y1="116" x2="76" y2="120" stroke-width="1.1"/>
+</g>
+<g fill="#000"><circle cx="96" cy="112" r="1.2"/><circle cx="106" cy="112" r="1.2"/><circle cx="116" cy="112" r="1.2"/><circle cx="126" cy="112" r="1.2"/></g>
+<rect x="152" y="96" width="20" height="20" transform="rotate(45 162 106)" fill="#000"/>
+</svg>`;
+
+const st = {
+  src: null, name: 'example', isExample: true,
+  geom: null, B0: null, B: null, an: null, res: null,
+  view: 'check', mode: 'auto', use: 'raise', exp: 'cutter', tool: 'brush', zoom: 1, inside: null,
+  strokes: [], pending: 0, running: false, err: ''
+};
+
+function num(id, lo, hi, dflt) {
+  const v = parseFloat($(id).value);
+  return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt;
+}
+function params() {
+  return {
+    widthMm: num('widthMm', 5, 300, 30),
+    minMm: num('minMm', 0.2, 3, 0.8),
+    speckMm: num('speck', 0, 3, 0.5),
+    thr: num('thr', 1, 254, 128),
+    invert: $('invert').checked,
+    taper: num('taper', 0, 100, 50),
+    plateOn: $('plateOn').checked,
+    plateMm: num('plateMm', 5, 300, 33),
+    brushMm: num('brush', 0.5, 20, 4)
+  };
+}
+
+// ----- loading sources -----
+function loadImage(url) {
+  return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('Could not read that image.')); im.src = url; });
+}
+async function srcFromSvgText(text) {
+  let doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+  let root = doc.documentElement;
+  if (root && root.localName === 'svg' && root.namespaceURI !== SVG_NS) {
+    doc = new DOMParser().parseFromString(text.replace(/<svg\b/, `<svg xmlns="${SVG_NS}"`), 'image/svg+xml');
+    root = doc.documentElement;
+  }
+  if (!root || root.localName !== 'svg' || doc.getElementsByTagName('parsererror').length) throw new Error('That file is not a readable SVG.');
+  let vb = (root.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+  if (vb.length !== 4 || vb.some(v => !isFinite(v)) || vb[2] <= 0 || vb[3] <= 0) {
+    let w = parseFloat(root.getAttribute('width')), h = parseFloat(root.getAttribute('height'));
+    if (!(w > 0 && h > 0)) {
+      const im = await loadImage('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(root)));
+      w = im.naturalWidth || 300; h = im.naturalHeight || 150;
+    }
+    vb = [0, 0, w, h];
+  }
+  return { type: 'svg', root, ox: vb[0], oy: vb[1], sw: vb[2], sh: vb[3] };
+}
+async function srcFromBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  try {
+    const im = await loadImage(url);
+    return { type: 'img', img: im, url, ox: 0, oy: 0, sw: im.naturalWidth, sh: im.naturalHeight };
+  } catch (e) { URL.revokeObjectURL(url); throw e; }
+}
+
+// Draw region [rx,ry,rw,rh] (source units) into a W×H canvas.
+async function renderRegion(src, rx, ry, rw, rh, W, H, invert) {
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  ctx.fillStyle = invert ? '#000' : '#fff'; ctx.fillRect(0, 0, W, H);
+  if (src.type === 'svg') {
+    const r = src.root.cloneNode(true);
+    r.setAttribute('viewBox', `${rx} ${ry} ${rw} ${rh}`);
+    r.setAttribute('width', W); r.setAttribute('height', H);
+    r.setAttribute('preserveAspectRatio', 'none');
+    if (r.style) { r.style.removeProperty('width'); r.style.removeProperty('height'); }
+    const im = await loadImage('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(r)));
+    ctx.drawImage(im, 0, 0, W, H);
+  } else {
+    const s = W / rw;
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.setTransform(s, 0, 0, s, -rx * s, -ry * s);
+    ctx.drawImage(src.img, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+  return cv;
+}
+function toBinary(cv, thr, invert) {
+  const { width: w, height: h } = cv;
+  const d = cv.getContext('2d').getImageData(0, 0, w, h).data;
+  const B = new Uint8Array(w * h);
+  for (let i = 0, k = 0; i < w * h; i++, k += 4) {
+    const lum = (d[k] * 299 + d[k + 1] * 587 + d[k + 2] * 114) / 1000;
+    B[i] = ((lum < thr) !== invert) ? 1 : 0;
+  }
+  clearFrame(B, w, h);
+  return B;
+}
+
+// ----- pipeline -----
+async function stageRender(p) {
+  const src = st.src;
+  const pl = 1000, ps = pl / Math.max(src.sw, src.sh);
+  const pw = Math.max(8, Math.round(src.sw * ps)), ph = Math.max(8, Math.round(src.sh * ps));
+  const pcv = await renderRegion(src, src.ox, src.oy, src.sw, src.sh, pw, ph, p.invert);
+  const PB = toBinary(pcv, p.thr, p.invert);
+  removeSmall(PB, pw, ph, Math.max(6, pw * ph * 0.00005), 1, true);
+  let x0 = pw, x1 = -1, y0 = ph, y1 = -1;
+  for (let y = 0; y < ph; y++) for (let x = 0; x < pw; x++) if (PB[y * pw + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 < 0) throw new Error('No dark shapes found. Try moving the black / white cutoff, or tick Invert.');
+  const sx = src.sw / pw, sy = src.sh / ph;
+  const cx = src.ox + (x0 - 0.5) * sx, cy = src.oy + (y0 - 0.5) * sy;
+  const cw = (x1 - x0 + 2) * sx, ch = (y1 - y0 + 2) * sy;
+  const hMm = p.widthMm * ch / cw;
+  const circ = st.use === 'cut' && p.plateOn;
+  const D = circ ? p.plateMm : 0;
+  const spanW = Math.max(p.widthMm, D), spanH = Math.max(hMm, D); // grid must hold the circle too
+  let pxPerMm = 12 / p.minMm;
+  const P0 = 10;
+  const area = (spanW * pxPerMm + 2 * P0) * (spanH * pxPerMm + 2 * P0);
+  let reduced = false;
+  if (area > MAX_PX) { pxPerMm *= Math.sqrt(MAX_PX / area); reduced = true; }
+  const rPx = (p.minMm / 2) * pxPerMm;
+  const P = Math.ceil(rPx) + 4;
+  const s = p.widthMm * pxPerMm / cw;
+  const GW = Math.round(spanW * pxPerMm) + 2 * P, GH = Math.round(spanH * pxPerMm) + 2 * P;
+  const rx = cx + cw / 2 - (GW / 2) / s, ry = cy + ch / 2 - (GH / 2) / s;
+  const cv = await renderRegion(src, rx, ry, GW / s, GH / s, GW, GH, p.invert);
+  st.B0 = toBinary(cv, p.thr, p.invert);
+  // Keep everything outside the artwork box empty, so stray marks and shapes cut off
+  // by the source's own edge never touch the frame.
+  const ax0 = Math.max(P, Math.floor(GW / 2 - cw * s / 2) - 2), ax1 = Math.min(GW - P, Math.ceil(GW / 2 + cw * s / 2) + 2);
+  const ay0 = Math.max(P, Math.floor(GH / 2 - ch * s / 2) - 2), ay1 = Math.min(GH - P, Math.ceil(GH / 2 + ch * s / 2) + 2);
+  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++)
+    if (x < ax0 || y < ay0 || x >= ax1 || y >= ay1) st.B0[y * GW + x] = 0;
+  const circle = circ ? { cx: GW / 2, cy: GH / 2, r: (D / 2) * pxPerMm, dMm: D } : null;
+  st.inside = null;
+  if (circle) {
+    st.inside = new Uint8Array(GW * GH);
+    const r2 = circle.r * circle.r;
+    for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+      const dx = x + 0.5 - circle.cx, dy = y + 0.5 - circle.cy;
+      if (dx * dx + dy * dy <= r2) st.inside[y * GW + x] = 1;
+    }
+  }
+  st.geom = { w: GW, h: GH, s, rx, ry, pxPerMm, rPx, hMm, reduced, circle };
+  for (const c of [$('viewCv'), $('maskCv')]) { c.width = GW; c.height = GH; }
+  layoutPaper();
+}
+function stageAnalyse(p) {
+  const g = st.geom;
+  const B = st.B0.slice();
+  const a = Math.round((p.speckMm * g.pxPerMm) ** 2);
+  removeSmall(B, g.w, g.h, a, 1, true);
+  removeSmall(B, g.w, g.h, a, 0, false);
+  st.B = B;
+  // Cutting-tool mode: the leftover material (white) is what must stay printable.
+  // The white margin runs off the grid edge, so it counts as open material, not a thin strip.
+  st.pastEdge = false;
+  if (st.use === 'cut') {
+    const W = new Uint8Array(B.length), c = g.circle, ins = st.inside;
+    if (c) {
+      // Material = inside the circle and not cut, plus a solid rim band (min width) at the edge.
+      const rimIn = c.r - (2 * g.rPx + 1);
+      for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
+        const i = y * g.w + x; if (!ins[i]) { if (B[i]) st.pastEdge = true; continue; }
+        const dx = x + 0.5 - c.cx, dy = y + 0.5 - c.cy;
+        const inRim = dx * dx + dy * dy > rimIn * rimIn;
+        if (inRim && B[i]) st.pastEdge = true;
+        W[i] = (!B[i] || inRim) ? 1 : 0;
+      }
+    } else for (let i = 0; i < B.length; i++) W[i] = B[i] ? 0 : 1;
+    st.base = W;
+  } else st.base = B;
+  st.an = analyse(st.base, g.w, g.h, g.rPx);
+  // With taper, lines a little wider than the minimum also get reshaped, so the
+  // width keeps flowing instead of stepping where a line crosses the minimum.
+  const taper = 0.6 * p.taper / 100;
+  const reg = taper > 0 ? analyse(st.base, g.w, g.h, g.rPx / (1 - taper)) : st.an;
+  st.skel = buildSkeleton(st.base, reg.keptT, reg.comp, reg.kept, st.an.dFg, g.w, g.h, g.rPx, taper);
+}
+function maskSelection() {
+  const g = st.geom, d = $('maskCv').getContext('2d').getImageData(0, 0, g.w, g.h).data;
+  const M = new Uint8Array(g.w * g.h);
+  for (let i = 0, k = 3; i < M.length; i++, k += 4) M[i] = d[k] > 0 ? 1 : 0;
+  return M;
+}
+function stageFinal() {
+  const g = st.geom;
+  const res = finalize(st.base, st.an, st.skel, g.w, g.h, g.rPx, st.mode === 'paint' ? maskSelection() : null);
+  if (st.use === 'cut') {
+    // Material can't grow past the circle. The cutter is the original black minus any material.
+    const ins = st.inside, N = res.F.length, B = st.B;
+    const mat = res.F, cutter = new Uint8Array(N), trimmed = new Uint8Array(N);
+    for (let i = 0; i < N; i++) {
+      if (ins && !ins[i]) { mat[i] = 0; res.added[i] = 0; }
+      cutter[i] = (B[i] && !mat[i] && (!ins || ins[i])) ? 1 : 0;
+      if (B[i] && !cutter[i] && (!ins || ins[i])) trimmed[i] = 1;
+    }
+    res.material = ins ? mat : null;
+    res.mbbox = ins ? bboxOf(mat, g.w, g.h) : null;
+    res.pieces = ins ? countPieces(mat, g.w, g.h, 4) : 0;
+    res.trimmed = trimmed;
+    res.F = cutter;
+  }
+  res.bbox = bboxOf(res.F, g.w, g.h);
+  st.res = res;
+}
+
+function schedule(level) {
+  st.pending = st.pending ? Math.min(st.pending, level) : level;
+  if (!st.running) run();
+}
+async function run() {
+  st.running = true;
+  $('busy').classList.add('on');
+  await new Promise(r => setTimeout(r, 30));
+  while (st.pending) {
+    const level = st.pending; st.pending = 0;
+    const p = params();
+    try {
+      if (!st.src) break;
+      if (level <= 1) { await stageRender(p); drawMask(); }
+      if (level <= 2) stageAnalyse(p);
+      if (level <= 3) stageFinal();
+      st.err = '';
+    } catch (e) {
+      st.err = e.message || String(e);
+      st.res = null;
+    }
+    draw();
+  }
+  $('busy').classList.remove('on');
+  st.running = false;
+}
+
+// ----- drawing -----
+const COLORS = { paper: [255, 255, 255], ink: [28, 28, 28], bad: [210, 63, 49], add: [212, 160, 40], off: [226, 220, 210], offInk: [168, 160, 150] };
+function pack(c) { return (255 << 24) | (c[2] << 16) | (c[1] << 8) | c[0]; }
+function draw() {
+  updateChips();
+  updateLegend();
+  if (!st.res || !st.geom) return;
+  const g = st.geom, cv = $('viewCv'), ctx = cv.getContext('2d');
+  const img = ctx.createImageData(g.w, g.h), px = new Uint32Array(img.data.buffer);
+  const P = pack(COLORS.paper), I = pack(COLORS.ink), R = pack(COLORS.bad), A = pack(COLORS.add);
+  const O = pack(COLORS.off), OI = pack(COLORS.offInk);
+  const B = st.B, an = st.an, res = st.res, N = g.w * g.h, ins = st.inside, cut = st.use === 'cut';
+  const gain = cut ? res.trimmed : res.added;
+  for (let i = 0; i < N; i++) {
+    if (ins && !ins[i]) { px[i] = (B[i] && st.view !== 'final') ? OI : O; continue; }
+    if (st.view === 'check') px[i] = an.keptT[i] ? R : (B[i] ? I : P);
+    else if (st.view === 'fixed') px[i] = res.unfixed[i] ? R : (gain[i] ? A : (B[i] ? I : P));
+    else if (cut && res.material) px[i] = res.material[i] ? I : P;   // the printed disc
+    else px[i] = res.F[i] ? I : P;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+function updateLegend() {
+  const L = $('legend');
+  const sw = (c, t) => `<span><i style="background:rgb(${c.join(',')})"></i>${t}</span>`;
+  const cut = st.use === 'cut', m = params().minMm;
+  if (st.view === 'check') L.innerHTML = cut
+    ? sw(COLORS.ink, 'Cutter') + sw(COLORS.bad, `Material left thinner than ${m} mm`)
+    : sw(COLORS.ink, 'OK') + sw(COLORS.bad, `Thinner than ${m} mm`);
+  else if (st.view === 'fixed') L.innerHTML = cut
+    ? sw(COLORS.ink, 'Cutter') + sw(COLORS.add, 'Trimmed off the cutter') + sw(COLORS.bad, 'Still too thin')
+    : sw(COLORS.ink, 'Original') + sw(COLORS.add, 'Added') + sw(COLORS.bad, 'Still too thin');
+  else L.innerHTML = cut && st.inside ? sw(COLORS.ink, 'Printed disc') + sw(COLORS.paper, 'Cut away')
+    : sw(COLORS.ink, cut ? 'Cutter shape (set as Hole in Tinkercad)' : 'What Tinkercad will extrude');
+  if (st.inside) L.innerHTML += sw(COLORS.off, 'Outside the circle');
+}
+function updateChips() {
+  const C = $('chips'), st2 = $('status');
+  if (st.err) { C.innerHTML = `<span class="chip bad">${esc(st.err)}</span>`; $('tcW').textContent = '–'; setExport(false); return; }
+  if (!st.res) { C.innerHTML = ''; setExport(false); return; }
+  const g = st.geom, p = params(), r = st.res, n = st.an.kept;
+  const disc = exportingDisc();
+  const eb = disc ? r.mbbox : r.bbox;
+  const bw = eb ? (eb[2] - eb[0] + 1) / g.pxPerMm : 0;
+  let html = `<span class="chip">Artwork ${p.widthMm.toFixed(1)} × ${g.hMm.toFixed(1)} mm</span>`;
+  if (g.circle) html += `<span class="chip">Circle Ø ${g.circle.dMm} mm</span>`;
+  if (g.circle && r.pieces > 1) html += `<span class="chip warn">Cutting all the way through splits the disc into ${r.pieces} pieces</span>`;
+  if (g.circle && st.pastEdge) html += `<span class="chip warn">Design reaches the rim: cutter trimmed to keep a ${p.minMm} mm edge</span>`;
+  const what = st.use === 'cut' ? 'material' : 'lines';
+  if (n === 0) html += `<span class="chip good">No ${what} under ${p.minMm} mm</span>`;
+  else {
+    html += `<span class="chip">${n} thin ${st.use === 'cut' ? 'gap' : 'spot'}${n === 1 ? '' : 's'} found</span>`;
+    html += r.stillThin === 0 ? `<span class="chip good">All fixed</span>` : `<span class="chip bad">${r.stillThin} still too thin</span>`;
+  }
+  if (g.reduced) html += `<span class="chip warn">Large design: preview resolution reduced</span>`;
+  C.innerHTML = html;
+  $('heightHint').textContent = `Height will be ${g.hMm.toFixed(1)} mm. Measured on the black artwork, not the canvas.`;
+  $('tcNote').innerHTML = `In Tinkercad: Import the SVG, then set the width to <b id="tcW">${bw.toFixed(1)}</b> mm` +
+    (disc ? '. It is the finished disc, ready to print.'
+      : st.use === 'cut' ? ` and make it a Hole.${g.circle ? ` Centre it on your Ø ${g.circle.dMm} mm cylinder with Align.` : ''}` : '.');
+  $('exportSeg').hidden = !(st.use === 'cut' && g.circle);
+  setExport(!!eb);
+}
+function exportingDisc() { return st.use === 'cut' && !!st.inside && st.exp === 'disc' && !!(st.res && st.res.material); }
+function setExport(on) { $('download').disabled = !on; $('copy').disabled = !on; }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function layoutPaper() {
+  const g = st.geom; if (!g) return;
+  const stage = $('stage'), paper = $('paper');
+  const aw = Math.max(100, stage.clientWidth - 32), ah = Math.max(100, stage.clientHeight - 32);
+  const fit = Math.min(aw / g.w, ah / g.h);
+  const scale = fit * st.zoom;
+  paper.style.width = Math.round(g.w * scale) + 'px';
+  paper.style.height = Math.round(g.h * scale) + 'px';
+  stage.classList.toggle('zoomed', st.zoom > 1);
+}
+window.addEventListener('resize', layoutPaper);
+
+// ----- mask painting -----
+function drawMask() {
+  const g = st.geom; if (!g) return;
+  const ctx = $('maskCv').getContext('2d');
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.clearRect(0, 0, g.w, g.h);
+  ctx.fillStyle = ctx.strokeStyle = '#2563EB';
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const s of st.strokes) paintStroke(ctx, s, 0);
+}
+function paintStroke(ctx, s, from) {
+  const g = st.geom, rp = s.rMm * g.pxPerMm;
+  ctx.globalCompositeOperation = s.erase ? 'destination-out' : 'source-over';
+  ctx.lineWidth = rp * 2;
+  const pt = q => [(q[0] - g.rx) * g.s, (q[1] - g.ry) * g.s];
+  const start = Math.max(0, from - 1);
+  ctx.beginPath();
+  for (let i = start; i < s.pts.length; i++) {
+    const [x, y] = pt(s.pts[i]);
+    if (i === start) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  for (let i = Math.max(0, from); i < s.pts.length; i++) {
+    const [x, y] = pt(s.pts[i]);
+    ctx.beginPath(); ctx.arc(x, y, rp, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+let curStroke = null;
+function evToSrc(e) {
+  const g = st.geom, r = $('maskCv').getBoundingClientRect();
+  const gx = (e.clientX - r.left) * g.w / r.width, gy = (e.clientY - r.top) * g.h / r.height;
+  return [g.rx + gx / g.s, g.ry + gy / g.s];
+}
+function moveRing(e) {
+  const ring = $('ring'), g = st.geom; if (!g) return;
+  const r = $('paper').getBoundingClientRect();
+  const dia = 2 * params().brushMm * g.pxPerMm * r.width / g.w;
+  ring.style.width = ring.style.height = dia + 'px';
+  ring.style.left = (e.clientX - r.left) + 'px'; ring.style.top = (e.clientY - r.top) + 'px';
+  ring.style.display = 'block';
+  ring.classList.toggle('erase', st.tool === 'erase');
+}
+const mcv = $('maskCv');
+mcv.addEventListener('pointerdown', e => {
+  if (st.mode !== 'paint' || !st.geom) return;
+  e.preventDefault(); mcv.setPointerCapture(e.pointerId);
+  curStroke = { erase: st.tool === 'erase', rMm: params().brushMm, pts: [evToSrc(e)] };
+  st.strokes.push(curStroke);
+  const ctx = mcv.getContext('2d'); ctx.fillStyle = ctx.strokeStyle = '#2563EB'; ctx.lineCap = ctx.lineJoin = 'round';
+  paintStroke(ctx, curStroke, 0);
+});
+mcv.addEventListener('pointermove', e => {
+  moveRing(e);
+  if (!curStroke) return;
+  curStroke.pts.push(evToSrc(e));
+  paintStroke(mcv.getContext('2d'), curStroke, curStroke.pts.length - 1);
+});
+const endStroke = () => { if (curStroke) { curStroke = null; schedule(3); } };
+mcv.addEventListener('pointerup', endStroke);
+mcv.addEventListener('pointercancel', endStroke);
+mcv.addEventListener('pointerleave', () => { $('ring').style.display = 'none'; });
+
+// ----- UI wiring -----
+function setPressed(ids, on) { for (const id of ids) $(id).setAttribute('aria-pressed', String(id === on)); }
+function setMode(m) {
+  st.mode = m;
+  setPressed(['modeAuto', 'modePaint'], m === 'auto' ? 'modeAuto' : 'modePaint');
+  $('paintTools').classList.toggle('on', m === 'paint');
+  $('paper').classList.toggle('painting', m === 'paint');
+  if (m === 'paint' && st.view === 'final') setView('check');
+  schedule(3);
+}
+function setUse(u) {
+  st.use = u;
+  setPressed(['useRaise', 'useCut'], u === 'raise' ? 'useRaise' : 'useCut');
+  $('useNote').textContent = u === 'raise'
+    ? 'Checks the black lines themselves.'
+    : 'The SVG will cut into a solid. Checks the material left between the black shapes, and trims the cutter where that material is too thin.';
+  $('modeAuto').textContent = u === 'raise' ? 'All thin lines' : 'All thin gaps';
+  $('plateBox').hidden = u !== 'cut';
+  schedule(1);
+}
+$('plateOn').addEventListener('change', () => { $('plateField').hidden = !$('plateOn').checked; schedule(1); });
+$('plateMm').addEventListener('input', () => debounce('r', () => schedule(1), 450));
+function setExp(e) {
+  st.exp = e;
+  setPressed(['expCutter', 'expDisc'], e === 'cutter' ? 'expCutter' : 'expDisc');
+  draw();
+}
+$('expCutter').onclick = () => setExp('cutter');
+$('expDisc').onclick = () => setExp('disc');
+$('useRaise').onclick = () => setUse('raise');
+$('useCut').onclick = () => setUse('cut');
+$('modeAuto').onclick = () => setMode('auto');
+$('modePaint').onclick = () => setMode('paint');
+$('toolBrush').onclick = () => { st.tool = 'brush'; setPressed(['toolBrush', 'toolErase'], 'toolBrush'); };
+$('toolErase').onclick = () => { st.tool = 'erase'; setPressed(['toolBrush', 'toolErase'], 'toolErase'); };
+$('undo').onclick = () => { if (st.strokes.length) { st.strokes.pop(); drawMask(); schedule(3); } };
+$('clearMask').onclick = () => { st.strokes = []; drawMask(); schedule(3); };
+
+function setView(v) {
+  st.view = v;
+  for (const [id, name] of [['vCheck', 'check'], ['vFixed', 'fixed'], ['vFinal', 'final']]) $(id).setAttribute('aria-selected', String(name === v));
+  draw();
+}
+$('vCheck').onclick = () => setView('check');
+$('vFixed').onclick = () => setView('fixed');
+$('vFinal').onclick = () => setView('final');
+document.querySelectorAll('.zoom .btn').forEach(b => b.onclick = () => {
+  st.zoom = +b.dataset.z;
+  document.querySelectorAll('.zoom .btn').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  layoutPaper();
+});
+
+let tmr = {};
+function debounce(key, fn, ms) { clearTimeout(tmr[key]); tmr[key] = setTimeout(fn, ms); }
+$('widthMm').addEventListener('input', () => debounce('r', () => schedule(1), 450));
+$('minMm').addEventListener('input', () => debounce('r', () => schedule(1), 450));
+$('thr').addEventListener('input', () => { $('thrOut').textContent = $('thr').value; debounce('r', () => schedule(1), 350); });
+$('invert').addEventListener('change', () => schedule(1));
+$('speck').addEventListener('input', () => { $('speckOut').textContent = $('speck').value + ' mm'; debounce('a', () => schedule(2), 300); });
+$('taper').addEventListener('input', () => { $('taperOut').textContent = $('taper').value + '%'; debounce('a', () => schedule(2), 300); });
+$('brush').addEventListener('input', () => { $('brushOut').textContent = $('brush').value + ' mm'; });
+
+async function openFile(file) {
+  if (!file) return;
+  try {
+    const isSvg = /svg/i.test(file.type) || /\.svg$/i.test(file.name || '');
+    if (st.src && st.src.url) URL.revokeObjectURL(st.src.url);
+    st.src = isSvg ? await srcFromSvgText(await file.text()) : await srcFromBlob(file);
+    st.name = (file.name || 'pasted-image').replace(/\.[^.]+$/, '');
+    st.isExample = false; st.strokes = [];
+    showName();
+    setView('check');
+    schedule(1);
+  } catch (e) { st.err = e.message; st.res = null; draw(); }
+}
+function showName() {
+  $('fname').innerHTML = st.isExample ? `<span class="tag">Example design</span> Drop your own file to replace it.` : `Loaded <b>${esc(st.name)}</b>`;
+}
+const drop = $('drop');
+drop.onclick = () => $('file').click();
+drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } };
+$('file').onchange = e => { openFile(e.target.files[0]); e.target.value = ''; };
+['dragenter', 'dragover'].forEach(t => document.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => document.addEventListener(t, e => { e.preventDefault(); if (t === 'drop' || e.target === document.documentElement) drop.classList.remove('over'); }));
+document.addEventListener('drop', e => { const f = e.dataTransfer && e.dataTransfer.files[0]; if (f) openFile(f); });
+document.addEventListener('paste', e => {
+  const items = e.clipboardData ? [...e.clipboardData.items] : [];
+  const it = items.find(i => i.kind === 'file' && /^image\//.test(i.type));
+  if (it) { e.preventDefault(); openFile(it.getAsFile()); return; }
+  const txt = e.clipboardData && e.clipboardData.getData('text/plain');
+  if (txt && /<svg[\s>]/i.test(txt) && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) {
+    e.preventDefault(); openFile(new File([txt], 'pasted.svg', { type: 'image/svg+xml' }));
+  }
+});
+
+// ----- export -----
+function makeSvg() {
+  const g = st.geom;
+  return buildSvg(exportingDisc() ? st.res.material : st.res.F, g.w, g.h, g.pxPerMm);
+}
+function say(msg, err) { const s = $('status'); s.textContent = msg; s.classList.toggle('err', !!err); }
+let downloadsApi;
+async function getDownloads() {
+  if (downloadsApi !== undefined) return downloadsApi;
+  try { downloadsApi = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; } catch (e) { downloadsApi = null; }
+  return downloadsApi;
+}
+if (window.claude && window.claude.use) getDownloads();
+$('download').onclick = async () => {
+  if (!st.res) return;
+  const { svg, rings } = makeSvg();
+  const filename = `${st.name || 'design'}-${exportingDisc() ? 'disc' : st.use === 'cut' ? 'cutter' : 'thick'}.svg`;
+  const api = await getDownloads();
+  if (api) {
+    try { await api.save({ filename, data: svg }); say(`Saved ${filename} (${rings} outlines).`); }
+    catch (e) {
+      if (e && e.code === 'declined') say('Download cancelled.', true);
+      else say('Download is not available here. Use Copy SVG code instead.', true);
+    }
+    return;
+  }
+  try {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+    a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    say(`Downloading ${filename}. If nothing happens, use Copy SVG code.`);
+  } catch (e) { say('Download is not available here. Use Copy SVG code instead.', true); }
+};
+$('copy').onclick = async () => {
+  if (!st.res) return;
+  const { svg } = makeSvg();
+  try { await navigator.clipboard.writeText(svg); say('SVG code copied. Paste it into a text file saved as .svg.'); }
+  catch (e) { say('Copy was blocked by the browser.', true); }
+};
+
+// ----- start with the example -----
+(async () => {
+  showName();
+  updateLegend();
+  st.src = await srcFromSvgText(EXAMPLE);
+  st.name = 'example';
+  schedule(1);
+})();
+</script>
+</body>
+</html>
